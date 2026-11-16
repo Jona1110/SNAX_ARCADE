@@ -1,0 +1,84 @@
+/* S.N.A.X. Arcade: Wings & Boneless Rush - Retro 8-Bit Styles */
+
+body {
+    font-family: 'VT323', monospace;
+    background-color: #0b0b10;
+    color: #f3f4f6;
+    overflow-x: hidden;
+    touch-action: none;
+}
+
+.pixel-font {
+    font-family: 'Press Start 2P', cursive;
+}
+
+/* CRT Scanline effect overlay */
+.crt::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 20;
+    background-size: 100% 4px, 6px 100%;
+    pointer-events: none;
+}
+
+/* Neon arcade glow effects */
+.arcade-box {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), inset 0 0 15px rgba(245, 158, 11, 0.3);
+    border: 4px solid #ef4444;
+}
+
+/* Arcade 3D Pixel Buttons */
+.btn-arcade {
+    font-family: 'Press Start 2P', cursive;
+    transition: transform 0.1s ease, background-color 0.1s ease;
+    box-shadow: 0 4px 0 #991b1b;
+}
+
+.btn-arcade:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #991b1b;
+}
+
+.btn-arcade-blue {
+    box-shadow: 0 4px 0 #1e3a8a;
+}
+
+.btn-arcade-blue:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #1e3a8a;
+}
+
+.btn-arcade-green {
+    box-shadow: 0 4px 0 #065f46;
+}
+
+.btn-arcade-green:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #065f46;
+}
+
+.btn-arcade-amber {
+    box-shadow: 0 4px 0 #92400e;
+}
+
+.btn-arcade-amber:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #92400e;
+}
+
+.ticket-border {
+    background-image: radial-gradient(circle at 0 50%, transparent 8px, #111827 9px),
+                      radial-gradient(circle at 100% 50%, transparent 8px, #111827 9px);
+}
+
+canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
