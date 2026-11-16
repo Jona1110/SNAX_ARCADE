@@ -1,6 +1,6 @@
 // ============================================================================
 // S.N.A.X. ARCADE: WINGS & BONELESS RUSH
-// Motor de Juego 8-Bit, IA de Dificultad Adaptativa y Conexión a Google Sheets
+// Motor de Juego 8-Bit, IA Real de Dificultad Adaptativa y Google Sheets
 // ============================================================================
 
 // --- CONFIGURACIÓN DE GOOGLE SHEETS ---
@@ -417,12 +417,6 @@ const lockedPlayerDisplay = document.getElementById('locked-player-display');
 const playerNameInput = document.getElementById('player-name-input');
 const loginErrorMsg = document.getElementById('login-error-msg');
 const sheetsStatusPill = document.getElementById('sheets-status-pill');
-const openSheetsBtn = document.getElementById('open-sheets-btn');
-const closeSheetsBtn = document.getElementById('close-sheets-btn');
-const saveSheetsBtn = document.getElementById('save-sheets-btn');
-const sheetsModal = document.getElementById('sheets-modal');
-const sheetsUrlInput = document.getElementById('sheets-url-input');
-const sheetsTestFeedback = document.getElementById('sheets-test-feedback');
 
 const startBtn = document.getElementById('start-btn');
 const pauseBtn = document.getElementById('pause-btn');
@@ -450,6 +444,11 @@ const openRewardsBtn = document.getElementById('open-rewards-btn');
 const closeRewardsBtn = document.getElementById('close-rewards-btn');
 const rewardsModal = document.getElementById('rewards-modal');
 const rewardsCatalogList = document.getElementById('rewards-catalog-list');
+
+const openGuideBtn = document.getElementById('open-guide-btn');
+const closeGuideBtn = document.getElementById('close-guide-btn');
+const guideModal = document.getElementById('guide-modal');
+
 const unlockedCouponBox = document.getElementById('unlocked-coupon-box');
 const noCouponHint = document.getElementById('no-coupon-hint');
 const couponTitleEl = document.getElementById('coupon-title');
@@ -458,7 +457,7 @@ const couponCodeTextEl = document.getElementById('coupon-code-text');
 const copyCouponBtn = document.getElementById('copy-coupon-btn');
 const allUnlockedBadgesEl = document.getElementById('all-unlocked-badges');
 
-// --- Estado Principal del Juego y Métricas de IA ---
+// --- Estado Principal del Juego ---
 let gameState = 'START';
 let animationFrameId = null;
 let score = 0;
@@ -502,12 +501,24 @@ syncPlayerLoginUI();
 showLoginScreen();
 startHighscoreEl.textContent = highscore;
 
+// ============================================================================
+// MOTOR REAL DE IA DE DIFICULTAD ADAPTATIVA (DDA - Dynamic Difficulty Adjustment)
+// Evalúa ventana reciente de rendimiento, velocidad de reacción, rachas y errores
+// para modular velocidad, tasa de aparición, trampas dirigidas y oleadas dobles.
+// ============================================================================
 let playerMetrics = {
     goodSpawned: 0,
     goodCaught: 0,
     hazardsSpawned: 0,
     hazardsDodged: 0,
     maxCombo: 0,
+    // Ventana deslizante de los últimos 14 eventos:
+    // +1.0 = comida atrapada, -0.85 = comida perdida, -1.6 = peligro golpeado, +0.45 = peligro esquivado
+    recentWindow: [],
+    playerMoveSamples: [],
+    lastPlayerX: null,
+    playerVelocityX: 0,
+    // skillRating: 0.78 (Novato/Asistencia) -> 1.0 (Estándar) -> hasta 1.85 (Pesadilla IA)
     skillRating: 1.0,
     tierLabel: 'ESTÁNDAR',
     previousTierLabel: 'ESTÁNDAR'
@@ -520,49 +531,98 @@ function resetPlayerMetrics() {
         hazardsSpawned: 0,
         hazardsDodged: 0,
         maxCombo: 0,
+        recentWindow: [],
+        playerMoveSamples: [],
+        lastPlayerX: null,
+        playerVelocityX: 0,
         skillRating: 1.0,
         tierLabel: 'ESTÁNDAR',
         previousTierLabel: 'ESTÁNDAR'
     };
-    aiSkillBadgeEl.classList.add('hidden');
+    aiSkillBadgeEl.textContent = 'IA: ESTÁNDAR';
+    aiSkillBadgeEl.className = 'pixel-font text-[7px] sm:text-[8px] bg-zinc-800 text-gray-200 px-1.5 py-0.5 rounded border border-zinc-600 shrink-0';
+}
+
+function recordPerformanceEvent(deltaScore) {
+    playerMetrics.recentWindow.push(deltaScore);
+    if (playerMetrics.recentWindow.length > 14) {
+        playerMetrics.recentWindow.shift();
+    }
+    updateAdaptiveDifficulty();
 }
 
 function updateAdaptiveDifficulty() {
+    // 1. Rendimiento en ventana reciente (peso 60%: reacciona rápido si mejora o empeora)
+    let recentMomentum = 0;
+    if (playerMetrics.recentWindow.length > 0) {
+        const sum = playerMetrics.recentWindow.reduce((acc, v) => acc + v, 0);
+        // Normalizamos entre -1.0 y +1.0
+        recentMomentum = Math.max(-1, Math.min(1, sum / (playerMetrics.recentWindow.length * 0.85)));
+    }
+
+    // 2. Precisión global histórica en la partida (peso 25%)
     const catchRate = playerMetrics.goodSpawned > 0
         ? playerMetrics.goodCaught / playerMetrics.goodSpawned
         : 0.5;
     const dodgeRate = playerMetrics.hazardsSpawned > 0
         ? playerMetrics.hazardsDodged / playerMetrics.hazardsSpawned
-        : 1.0;
+        : 0.8;
+    const globalSkill = ((catchRate * 0.65) + (dodgeRate * 0.35) - 0.55) * 2; // [-1.1, +0.9]
 
-    const totalEvents = playerMetrics.goodSpawned + playerMetrics.hazardsSpawned;
-    if (totalEvents < 8) return;
+    // 3. Racha de combo activa (peso 15%)
+    const comboBoost = Math.min(1, comboCount / 10);
 
-    const comboFactor = Math.min(1, playerMetrics.maxCombo / 12);
-    const rawStrength = (catchRate * 0.55) + (dodgeRate * 0.25) + (comboFactor * 0.20);
+    // 4. Penalización de alivio si tiene 1 sola vida
+    const lifeRelief = lives === 1 ? -0.14 : 0;
 
-    const targetSkill = 1.0 + Math.max(0, (rawStrength - 0.58) * 1.55);
-    playerMetrics.skillRating = Math.min(1.65, Math.max(1.0, (playerMetrics.skillRating * 0.85) + (targetSkill * 0.15)));
+    // Índice compuesto de habilidad [-1.0 a +1.2]
+    const compositeSkill = (recentMomentum * 0.60) + (globalSkill * 0.25) + (comboBoost * 0.15) + lifeRelief;
 
-    if (playerMetrics.skillRating >= 1.42) {
-        playerMetrics.tierLabel = 'MODO PRO+';
-        aiSkillBadgeEl.textContent = 'IA: PRO+';
-        aiSkillBadgeEl.className = 'pixel-font text-[7px] sm:text-[8px] bg-red-600 text-white px-1 py-0.5 rounded border border-yellow-300 shrink-0';
-        aiSkillBadgeEl.classList.remove('hidden');
-    } else if (playerMetrics.skillRating >= 1.20) {
-        playerMetrics.tierLabel = 'RETO ALTO';
-        aiSkillBadgeEl.textContent = 'IA: ALTO';
-        aiSkillBadgeEl.className = 'pixel-font text-[7px] sm:text-[8px] bg-amber-500 text-black px-1 py-0.5 rounded border border-white shrink-0';
-        aiSkillBadgeEl.classList.remove('hidden');
+    // Mapeamos a skillRating:
+    // - Si juega mal (composite < 0): baja hasta 0.78 (más lento, menos peligros, más tiempo)
+    // - Si juega normal (composite ~ 0): 1.00
+    // - Si juega muy bien (composite > 0): sube hasta 1.85 (mucho más rápido, trampas tácticas, oleadas dobles)
+    let targetRating = 1.0;
+    if (compositeSkill >= 0) {
+        targetRating = 1.0 + Math.min(0.85, compositeSkill * 0.82);
     } else {
-        playerMetrics.tierLabel = 'ESTÁNDAR';
-        aiSkillBadgeEl.classList.add('hidden');
+        targetRating = 1.0 + Math.max(-0.22, compositeSkill * 0.25);
     }
 
-    if (playerMetrics.tierLabel !== playerMetrics.previousTierLabel && playerMetrics.tierLabel !== 'ESTÁNDAR') {
-        createPopup(`⚡ IA: ${playerMetrics.tierLabel}`, canvas.width * 0.18, canvas.height * 0.35, '#fbbf24');
+    // Suavizado exponencial rápido para que se sienta vivo durante la partida
+    playerMetrics.skillRating = (playerMetrics.skillRating * 0.72) + (targetRating * 0.28);
+
+    // Clasificación del nivel de IA
+    let newTier = 'ESTÁNDAR';
+    let badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-zinc-800 text-gray-200 px-1.5 py-0.5 rounded border border-zinc-600 shrink-0';
+
+    if (playerMetrics.skillRating >= 1.58) {
+        newTier = 'PESADILLA IA';
+        badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-purple-700 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-300 animate-pulse shrink-0';
+    } else if (playerMetrics.skillRating >= 1.36) {
+        newTier = 'MODO PRO+';
+        badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded border border-yellow-300 shrink-0';
+    } else if (playerMetrics.skillRating >= 1.16) {
+        newTier = 'DESAFIANTE';
+        badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-amber-500 text-black px-1.5 py-0.5 rounded border border-white shrink-0';
+    } else if (playerMetrics.skillRating <= 0.86) {
+        newTier = 'ASISTIDO';
+        badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-emerald-800 text-emerald-200 px-1.5 py-0.5 rounded border border-emerald-400 shrink-0';
     }
-    playerMetrics.previousTierLabel = playerMetrics.tierLabel;
+
+    playerMetrics.tierLabel = newTier;
+    aiSkillBadgeEl.textContent = `IA: ${newTier}`;
+    aiSkillBadgeEl.className = badgeClass;
+
+    // Aviso en pantalla cuando la IA sube o baja de categoría
+    if (newTier !== playerMetrics.previousTierLabel && (playerMetrics.goodSpawned + playerMetrics.hazardsSpawned) >= 5) {
+        if (playerMetrics.skillRating >= 1.16) {
+            createPopup(`⚡ IA SUBIÓ A ${newTier}`, canvas.width * 0.14, canvas.height * 0.32, '#facc15');
+        } else if (newTier === 'ASISTIDO') {
+            createPopup(`🛡️ IA AJUSTÓ RITMO`, canvas.width * 0.18, canvas.height * 0.32, '#34d399');
+        }
+    }
+    playerMetrics.previousTierLabel = newTier;
 }
 
 // --- Sincronización con Google Sheets (Apps Script Web App) ---
@@ -571,10 +631,10 @@ function syncSheetsStatusUI() {
     const url = getSheetsWebAppUrl();
     if (url && url.startsWith('http')) {
         sheetsStatusPill.textContent = 'CONECTADO';
-        sheetsStatusPill.className = 'px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500 text-emerald-300 text-[8px] sm:text-[9px]';
+        sheetsStatusPill.className = 'pixel-font px-2.5 py-1 rounded bg-[#07261d] border border-[#10b981] text-[#34d399] text-[8px] sm:text-[9px] tracking-wider';
     } else {
-        sheetsStatusPill.textContent = 'SHEETS: LOCAL';
-        sheetsStatusPill.className = 'px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-gray-400 text-[8px] sm:text-[9px]';
+        sheetsStatusPill.textContent = 'MODO LOCAL';
+        sheetsStatusPill.className = 'pixel-font px-2.5 py-1 rounded bg-zinc-900 border border-zinc-700 text-gray-400 text-[8px] sm:text-[9px] tracking-wider';
     }
 }
 syncSheetsStatusUI();
@@ -686,10 +746,11 @@ const itemTypes = [
 
 function buildStartGuide() {
     const grid = document.getElementById('item-guide-grid');
+    if (!grid) return;
     grid.innerHTML = '';
     itemTypes.forEach(item => {
         const row = document.createElement('div');
-        row.className = 'flex items-center space-x-2 bg-black/60 p-1 rounded border border-gray-800';
+        row.className = 'flex items-center space-x-2 bg-black/70 p-1.5 rounded border border-slate-800';
         
         const miniCanvas = document.createElement('canvas');
         miniCanvas.width = 32;
@@ -701,7 +762,7 @@ function buildStartGuide() {
         const info = document.createElement('div');
         info.className = 'leading-tight overflow-hidden';
         info.innerHTML = `
-            <div class="text-[11px] font-bold truncate ${item.hazard ? 'text-red-400' : 'text-white'}">${item.label}</div>
+            <div class="text-xs font-bold truncate ${item.hazard ? 'text-red-400' : 'text-white'}">${item.label}</div>
             <div class="pixel-font text-[8px] ${item.hazard ? 'text-red-500' : 'text-yellow-400'}">${item.badge}</div>
         `;
         row.appendChild(miniCanvas);
@@ -741,7 +802,6 @@ let player = {
 
 function getResponsiveScale() {
     if (!canvas || !canvas.width) return 1;
-    // Escala suavemente entre 0.72 (en pantallas de ~320px) y 1.0 (en >= 520px)
     return Math.min(1, Math.max(0.72, canvas.width / 520));
 }
 
@@ -760,7 +820,6 @@ function resizeCanvas() {
         player.width = Math.round(104 * scale);
         player.height = Math.round(52 * scale);
         player.speed = 9.8 * (0.85 + scale * 0.15);
-        // Margen inferior seguro para que la charola y sus patitas nunca queden cortadas
         player.y = canvas.height - player.height - Math.round(14 * scale);
         player.x = Math.max(0, Math.min(canvas.width - player.width, relativeX * canvas.width));
     }
@@ -773,7 +832,7 @@ player.x = canvas.width / 2 - player.width / 2;
 let keys = { ArrowLeft: false, ArrowRight: false, KeyA: false, KeyD: false };
 
 window.addEventListener('keydown', (e) => {
-    if (document.activeElement === playerNameInput || document.activeElement === sheetsUrlInput) return;
+    if (document.activeElement === playerNameInput) return;
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.ArrowLeft = true;
     if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.ArrowRight = true;
     if (e.code === 'KeyP' || e.code === 'Escape') {
@@ -816,11 +875,11 @@ function updatePlayerX(clientX) {
     player.x = Math.max(0, Math.min(canvas.width - player.width, targetX));
 }
 
-// --- Generación Balanceada de Objetos ---
+// --- Generación Inteligente de Objetos Dirigida por la IA ---
 let items = [];
 let particles = [];
 let spawnTimer = 0;
-let spawnInterval = 54;
+let spawnInterval = 52;
 let lastHazardX = -999;
 let consecutiveHazards = 0;
 
@@ -838,26 +897,37 @@ function spawnParticles(x, y, colors, count = 10) {
     }
 }
 
-function spawnItem() {
-    const extraHazardBoost = (playerMetrics.skillRating - 1.0) * 0.14;
-    let rand = Math.random();
+function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
+    const rating = playerMetrics.skillRating;
+    // Si rating > 1.0 sube la proporción de peligros; si rating < 1.0 baja
+    const hazardShift = (rating - 1.0) * 0.26;
+
     let chosen = itemTypes[0];
 
-    if (consecutiveHazards >= 2) {
+    if (forceType === 'food') {
+        const foods = itemTypes.filter(i => !i.hazard);
+        chosen = foods[Math.floor(Math.random() * foods.length)];
+    } else if (forceType === 'hazard') {
+        const hazards = itemTypes.filter(i => i.hazard);
+        chosen = hazards[Math.floor(Math.random() * hazards.length)];
+    } else if (consecutiveHazards >= (rating >= 1.55 ? 3 : 2)) {
         const foods = itemTypes.filter(i => !i.hazard);
         chosen = foods[Math.floor(Math.random() * foods.length)];
     } else {
+        let rand = Math.random();
         let cumulative = 0;
-        for (let it of itemTypes) {
-            let weight = it.prob;
-            if (it.hazard) {
-                weight += extraHazardBoost * 0.5;
-            } else {
-                weight -= extraHazardBoost * 0.2;
-            }
-            cumulative += Math.max(0.03, weight);
+        let totalWeight = 0;
+        const weights = itemTypes.map(it => {
+            let w = it.prob + (it.hazard ? hazardShift * 0.55 : -hazardShift * 0.22);
+            return Math.max(0.025, w);
+        });
+        totalWeight = weights.reduce((a, b) => a + b, 0);
+        rand *= totalWeight;
+
+        for (let idx = 0; idx < itemTypes.length; idx++) {
+            cumulative += weights[idx];
             if (rand <= cumulative) {
-                chosen = it;
+                chosen = itemTypes[idx];
                 break;
             }
         }
@@ -865,44 +935,96 @@ function spawnItem() {
 
     const scale = getResponsiveScale();
     const size = Math.round(44 * scale);
-    const wobbleAmp = (chosen.hazard && playerMetrics.skillRating >= 1.25 ? 4.2 : 2.0) * scale;
-    // Margen seguro lateral que incluye la oscilación horizontal para que nunca se corte en bordes
+    const wobbleAmp = (chosen.hazard
+        ? (2.2 + Math.max(0, rating - 1.0) * 5.2)
+        : (1.5 + Math.max(0, rating - 1.25) * 2.5)) * scale;
+
     const safePadding = Math.ceil(wobbleAmp + 8);
-    const maxSpawnX = Math.max(safePadding, canvas.width - size - safePadding);
-    let x = Math.random() * (maxSpawnX - safePadding) + safePadding;
+    const minSpawnX = safePadding;
+    const maxSpawnX = Math.max(minSpawnX + 10, canvas.width - size - safePadding);
+
+    let x = overrideX !== null
+        ? Math.max(minSpawnX, Math.min(maxSpawnX, overrideX))
+        : Math.random() * (maxSpawnX - minSpawnX) + minSpawnX;
 
     if (chosen.hazard) {
         consecutiveHazards++;
         playerMetrics.hazardsSpawned++;
-        let attempts = 0;
-        while (Math.abs(x - lastHazardX) < player.width * 1.1 && attempts < 6) {
-            x = Math.random() * (maxSpawnX - safePadding) + safePadding;
-            attempts++;
+
+        // IA TÁCTICA: Si el jugador es bueno (rating >= 1.22), la IA predice hacia dónde va la charola
+        // y coloca el peligro en su zona de trayectoria (pero dejando espacio justo para esquivarlo)
+        if (overrideX === null && rating >= 1.22 && Math.random() < Math.min(0.75, (rating - 1.1) * 0.85)) {
+            const playerCenter = player.x + player.width / 2;
+            const predictedCenter = playerCenter + (playerMetrics.playerVelocityX * 14);
+            const offsetSign = Math.random() < 0.5 ? -1 : 1;
+            // Lo pone cerca de su trayectoria para forzar reflejos rápidos
+            const tacticalX = predictedCenter - size / 2 + (offsetSign * player.width * 0.35);
+            x = Math.max(minSpawnX, Math.min(maxSpawnX, tacticalX));
+        } else if (overrideX === null) {
+            let attempts = 0;
+            while (Math.abs(x - lastHazardX) < player.width * 1.1 && attempts < 6) {
+                x = Math.random() * (maxSpawnX - minSpawnX) + minSpawnX;
+                attempts++;
+            }
         }
         lastHazardX = x;
     } else {
         consecutiveHazards = 0;
         playerMetrics.goodSpawned++;
+
+        // Si la IA está en modo PRO+ o PESADILLA, coloca comida lejos de la charola para exigir desplazamiento
+        if (overrideX === null && rating >= 1.38 && Math.random() < 0.65) {
+            const playerCenter = player.x + player.width / 2;
+            const farSideX = playerCenter < canvas.width / 2
+                ? canvas.width * (0.62 + Math.random() * 0.28)
+                : canvas.width * (0.06 + Math.random() * 0.28);
+            x = Math.max(minSpawnX, Math.min(maxSpawnX, farSideX - size / 2));
+        }
     }
 
-    const baseSpeed = (2.4 + Math.random() * 1.2) + (level * 0.32);
-    const adaptiveSpeed = baseSpeed * (0.92 + (playerMetrics.skillRating - 1.0) * 0.45) * (0.88 + scale * 0.12);
+    // Velocidad real modulada por nivel + rating de IA
+    const baseSpeed = (2.4 + Math.random() * 1.15) + (level * 0.32);
+    const aiSpeedMultiplier = rating >= 1.0
+        ? (1.0 + (rating - 1.0) * 0.78)   // Hasta +66% de velocidad en Pesadilla IA
+        : (0.78 + (rating - 0.78));        // Más lento si está en modo Asistido
+
+    const finalSpeed = baseSpeed * aiSpeedMultiplier * (0.88 + scale * 0.12);
 
     items.push({
         ...chosen,
         x: x,
-        y: -size,
+        y: -size - yOffset,
         size: size,
-        speed: adaptiveSpeed,
+        speed: finalSpeed,
         wobblePhase: Math.random() * Math.PI * 2,
         wobbleAmp: wobbleAmp
     });
+
+    return x;
+}
+
+function spawnItem() {
+    const rating = playerMetrics.skillRating;
+    const firstX = createSingleItem();
+
+    // OLEADAS DOBLES INTELIGENTES: Cuando el jugador es muy bueno (PRO+ / PESADILLA),
+    // la IA lanza un segundo objeto simultáneo en otro carril (comida + peligro cebo)
+    const doubleWaveChance = rating >= 1.58 ? 0.52 : (rating >= 1.36 ? 0.30 : 0);
+    if (doubleWaveChance > 0 && Math.random() < doubleWaveChance) {
+        const minGap = player.width * 1.35;
+        const secondX = firstX < canvas.width / 2
+            ? Math.min(canvas.width - 52, firstX + minGap + Math.random() * 60)
+            : Math.max(12, firstX - minGap - Math.random() * 60);
+
+        const secondType = Math.random() < 0.55 ? 'hazard' : 'food';
+        createSingleItem(secondType, secondX, 24);
+    }
 }
 
 function createPopup(text, x, y, color = '#facc15') {
     const popup = document.createElement('div');
     popup.className = 'absolute pixel-font text-[9px] sm:text-xs font-bold pointer-events-none transition-all duration-700 ease-out whitespace-nowrap';
-    popup.style.left = `${Math.max(4, Math.min(68, (x / canvas.width) * 100))}%`;
+    popup.style.left = `${Math.max(4, Math.min(62, (x / canvas.width) * 100))}%`;
     popup.style.top = `${Math.max(8, Math.min(82, (y / canvas.height) * 100))}%`;
     popup.style.color = color;
     popup.style.textShadow = '2px 2px 0px #000';
@@ -987,6 +1109,8 @@ function drawTakeoutTray(x, y, w, h) {
 function updateGame() {
     if (gameState !== 'PLAYING') return;
 
+    const prevPlayerX = player.x;
+
     if (keys.ArrowLeft || keys.KeyA) {
         player.x -= player.speed;
         player.tilt = -0.05;
@@ -1002,6 +1126,9 @@ function updateGame() {
     if (player.x < 0) player.x = 0;
     if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
 
+    // Rastreo de velocidad instantánea del jugador para predicción de trayectoria de la IA
+    playerMetrics.playerVelocityX = (player.x - prevPlayerX);
+
     if (comboCount > 1) {
         comboTimer--;
         if (comboTimer <= 0) {
@@ -1011,8 +1138,10 @@ function updateGame() {
     }
 
     spawnTimer++;
-    const aiRateReduction = (playerMetrics.skillRating - 1.0) * 14;
-    const currentSpawnRate = Math.max(22, Math.floor(spawnInterval - (level * 3.5) - aiRateReduction));
+    // Cadencia de aparición controlada por la IA:
+    // Si skillRating > 1.0 caen mucho más seguido; si < 1.0 da más respiro
+    const aiRateDelta = (playerMetrics.skillRating - 1.0) * 26;
+    const currentSpawnRate = Math.max(17, Math.min(72, Math.floor(spawnInterval - (level * 3.2) - aiRateDelta)));
     if (spawnTimer >= currentSpawnRate) {
         spawnItem();
         spawnTimer = 0;
@@ -1022,7 +1151,7 @@ function updateGame() {
     for (let i = items.length - 1; i >= 0; i--) {
         const it = items[i];
         it.y += it.speed;
-        it.wobblePhase += 0.075;
+        it.wobblePhase += 0.075 + Math.max(0, playerMetrics.skillRating - 1.2) * 0.04;
 
         const currentWobbleX = Math.sin(it.wobblePhase) * (it.wobbleAmp || 2.0);
         const itemRenderX = Math.max(2, Math.min(canvas.width - it.size - 2, it.x + currentWobbleX));
@@ -1040,8 +1169,8 @@ function updateGame() {
                 lives--;
                 comboCount = 0;
                 comboBadgeEl.classList.add('hidden');
-                playerMetrics.skillRating = Math.max(1.0, playerMetrics.skillRating - 0.12);
-                updateAdaptiveDifficulty();
+                // Penalización fuerte en la ventana de IA para que relaje el ritmo si sufre daño
+                recordPerformanceEvent(-1.75);
 
                 playSound('hurt');
                 spawnParticles(itemRenderX + it.size / 2, it.y + it.size / 2, ['#ef4444', '#facc15', '#38bdf8'], 14);
@@ -1076,7 +1205,8 @@ function updateGame() {
                 }
 
                 spawnParticles(itemRenderX + it.size / 2, it.y + it.size / 2, ['#f97316', '#facc15', '#ffffff'], 10);
-                updateAdaptiveDifficulty();
+                // Registra captura exitosa en la IA (los ítems de 10 pts suman más habilidad)
+                recordPerformanceEvent(it.pts >= 10 ? 1.2 : 1.0);
                 checkMilestoneRewards();
 
                 const newLevel = Math.floor(score / 200) + 1;
@@ -1095,10 +1225,14 @@ function updateGame() {
         if (it.y > canvas.height + it.size) {
             if (it.hazard) {
                 playerMetrics.hazardsDodged++;
-                updateAdaptiveDifficulty();
-            } else if (comboCount > 0) {
-                comboCount = 0;
-                comboBadgeEl.classList.add('hidden');
+                recordPerformanceEvent(0.45);
+            } else {
+                // Dejar caer comida reduce la puntuación de habilidad para que la IA no lo abrume
+                if (comboCount > 0) {
+                    comboCount = 0;
+                    comboBadgeEl.classList.add('hidden');
+                }
+                recordPerformanceEvent(-0.85);
             }
             items.splice(i, 1);
         }
@@ -1211,9 +1345,9 @@ function startGame() {
 
     rewardsModal.classList.add('hidden');
     rewardsModal.classList.remove('flex');
-    if (sheetsModal) {
-        sheetsModal.classList.add('hidden');
-        sheetsModal.classList.remove('flex');
+    if (guideModal) {
+        guideModal.classList.add('hidden');
+        guideModal.classList.remove('flex');
     }
     pauseScreen.classList.add('hidden');
     pauseScreen.classList.remove('flex');
@@ -1240,7 +1374,7 @@ function pauseGame() {
     const catchPct = playerMetrics.goodSpawned > 0
         ? Math.round((playerMetrics.goodCaught / playerMetrics.goodSpawned) * 100)
         : 0;
-    pauseAiSummaryEl.textContent = `Jugador: ${currentPlayerName} | IA: ${playerMetrics.tierLabel} (${catchPct}%)`;
+    pauseAiSummaryEl.textContent = `IA: ${playerMetrics.tierLabel} (${Math.round(playerMetrics.skillRating * 100)}% intensidad | ${catchPct}% prec.)`;
 
     pauseScreen.classList.remove('hidden');
     pauseScreen.classList.add('flex');
@@ -1262,7 +1396,6 @@ function exitToMainMenu() {
     items = [];
     particles = [];
     comboBadgeEl.classList.add('hidden');
-    aiSkillBadgeEl.classList.add('hidden');
     hudPlayerTagEl.classList.add('hidden');
     pauseBtn.classList.add('hidden');
     pauseScreen.classList.add('hidden');
@@ -1375,7 +1508,7 @@ copyCouponBtn.addEventListener('click', () => {
     document.body.removeChild(tempInput);
 });
 
-// --- Modales de Premios y Google Sheets ---
+// --- Modales de Premios y Guía ---
 if (openRewardsBtn && rewardsModal) {
     openRewardsBtn.addEventListener('click', () => {
         rewardsModal.classList.remove('hidden');
@@ -1389,36 +1522,16 @@ if (closeRewardsBtn && rewardsModal) {
     });
 }
 
-if (openSheetsBtn && sheetsModal) {
-    openSheetsBtn.addEventListener('click', () => {
-        if (sheetsUrlInput) sheetsUrlInput.value = getSheetsWebAppUrl();
-        if (sheetsTestFeedback) sheetsTestFeedback.textContent = '';
-        sheetsModal.classList.remove('hidden');
-        sheetsModal.classList.add('flex');
+if (openGuideBtn && guideModal) {
+    openGuideBtn.addEventListener('click', () => {
+        guideModal.classList.remove('hidden');
+        guideModal.classList.add('flex');
     });
 }
-
-if (closeSheetsBtn && sheetsModal) {
-    closeSheetsBtn.addEventListener('click', () => {
-        sheetsModal.classList.add('hidden');
-        sheetsModal.classList.remove('flex');
-    });
-}
-
-if (saveSheetsBtn && sheetsUrlInput) {
-    saveSheetsBtn.addEventListener('click', () => {
-        const url = sheetsUrlInput.value.trim();
-        localStorage.setItem('snax_sheets_url', url);
-        syncSheetsStatusUI();
-        if (sheetsTestFeedback) {
-            if (url && url.startsWith('http')) {
-                sheetsTestFeedback.textContent = '✅ URL guardada. Los jugadores se registrarán automáticamente.';
-                sheetsTestFeedback.className = 'text-xs text-emerald-400 mb-3 min-h-[18px]';
-            } else {
-                sheetsTestFeedback.textContent = 'ℹ️ Modo local activado (sin URL de Sheets).';
-                sheetsTestFeedback.className = 'text-xs text-amber-300 mb-3 min-h-[18px]';
-            }
-        }
+if (closeGuideBtn && guideModal) {
+    closeGuideBtn.addEventListener('click', () => {
+        guideModal.classList.add('hidden');
+        guideModal.classList.remove('flex');
     });
 }
 
