@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.N.A.X. Arcade: Wings & Boneless Rush</title>
+    <!-- Tailwind CSS for UI overlays and styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for retro pixel aesthetic -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #0b0b10;
+            color: #f3f4f6;
+            overflow-x: hidden;
+            touch-action: none;
+        }
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+        /* CRT Scanline effect overlay */
+        .crt::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 20;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+        /* Neon arcade glow effects */
+        .arcade-box {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), inset 0 0 15px rgba(245, 158, 11, 0.3);
+            border: 4px solid #ef4444;
+        }
+        .btn-arcade {
+            font-family: 'Press Start 2P', cursive;
+            transition: transform 0.1s ease, background-color 0.1s ease;
+            box-shadow: 0 4px 0 #991b1b;
+        }
+        .btn-arcade:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #991b1b;
+        }
+        .btn-arcade-blue {
+            box-shadow: 0 4px 0 #1e3a8a;
+        }
+        .btn-arcade-blue:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1e3a8a;
+        }
+        .btn-arcade-green {
+            box-shadow: 0 4px 0 #065f46;
+        }
+        .btn-arcade-green:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #065f46;
+        }
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 select-none">
+
+    <!-- Main Game Container -->
+    <div id="game-container" class="relative w-full max-w-2xl bg-gray-950 arcade-box rounded-lg overflow-hidden flex flex-col crt shadow-2xl">
+        
+        <!-- Top HUD Header -->
+        <header class="bg-black/95 border-b-2 border-red-600 px-3 sm:px-4 py-2.5 flex justify-between items-center z-30">
+            <div class="flex items-center space-x-2">
+                <span class="pixel-font text-xs sm:text-sm text-yellow-400">S.N.A.X.</span>
+                <span id="combo-badge" class="hidden pixel-font text-[10px] bg-amber-500 text-black px-1.5 py-0.5 rounded animate-bounce">x2</span>
+            </div>
+            
+            <div class="flex items-center space-x-3 sm:space-x-5 pixel-font">
+                <div>
+                    <span class="text-[9px] sm:text-[10px] text-red-500 block">SCORE</span>
+                    <span id="score-val" class="text-xs sm:text-base text-yellow-400">000000</span>
+                </div>
+                <div>
+                    <span class="text-[9px] sm:text-[10px] text-red-500 block">LVL</span>
+                    <span id="level-val" class="text-xs sm:text-base text-green-400">1</span>
+                </div>
+                <div>
+                    <span class="text-[9px] sm:text-[10px] text-red-500 block">LIVES</span>
+                    <div id="lives-container" class="flex space-x-1 mt-0.5 h-3.5 items-center"></div>
+                </div>
+                <!-- Pause Button -->
+                <button id="pause-btn" title="Pausar (P / ESC)" class="hidden bg-zinc-800 hover:bg-zinc-700 border-2 border-yellow-400 text-yellow-400 px-2 py-1.5 rounded text-xs active:translate-y-0.5 transition">
+                    II
+                </button>
+            </div>
+        </header>
+
+        <!-- Canvas Area -->
+        <div class="relative w-full aspect-[3/4] sm:aspect-[4/3] bg-gradient-to-b from-slate-950 via-zinc-900 to-neutral-950 overflow-hidden flex items-center justify-center">
+            
+            <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+            <!-- Floating Combo / Score Popups Container -->
+            <div id="popup-container" class="absolute inset-0 pointer-events-none z-20 overflow-hidden"></div>
+
+            <!-- Start Screen Overlay -->
+            <div id="start-screen" class="absolute inset-0 bg-black/92 flex flex-col items-center justify-center p-4 sm:p-6 z-40 text-center overflow-y-auto">
+                <div class="mb-1 text-yellow-400 pixel-font text-sm sm:text-xl animate-pulse">★ S.N.A.X. ARCADE ★</div>
+                <h1 class="text-xl sm:text-3xl pixel-font text-red-500 mb-3 tracking-wider drop-shadow-[0_4px_4px_rgba(239,68,68,0.8)]">WINGS & BONELESS RUSH</h1>
+                
+                <div class="text-xs sm:text-sm pixel-font text-green-400 mb-3">
+                    HIGH SCORE: <span id="start-highscore" class="text-yellow-400">0</span>
+                </div>
+
+                <!-- Visual Pixel Art Legend -->
+                <div class="bg-gray-900/95 border-2 border-amber-500/60 p-3 sm:p-4 rounded-lg mb-4 w-full max-w-md text-left">
+                    <p class="text-yellow-400 pixel-font text-[10px] sm:text-xs mb-2.5 text-center border-b border-gray-800 pb-1.5">GUÍA DEL MENÚ PIXEL ART</p>
+                    <div id="item-guide-grid" class="grid grid-cols-2 gap-2 text-xs sm:text-sm text-gray-200">
+                        <!-- Dynamically populated with mini pixel canvases -->
+                    </div>
+                    <p class="text-[11px] sm:text-xs text-amber-300 mt-2.5 pt-2 border-t border-gray-800 text-center">
+                        Controles: Flechas ◀ ▶ / A-D o Arrastra tu charola en pantalla
+                    </p>
+                </div>
+
+                <button id="start-btn" class="btn-arcade bg-red-600 hover:bg-red-500 text-white px-7 py-3.5 rounded text-sm sm:text-lg uppercase tracking-widest border-2 border-yellow-400">
+                    JUGAR
+                </button>
+            </div>
+
+            <!-- Pause Menu Overlay -->
+            <div id="pause-screen" class="absolute inset-0 bg-black/88 hidden flex-col items-center justify-center p-6 z-40 text-center backdrop-blur-[2px]">
+                <div class="bg-gray-950 border-4 border-yellow-400 p-6 rounded-lg w-full max-w-xs sm:max-w-sm shadow-[0_0_25px_rgba(250,204,21,0.4)] space-y-4">
+                    <h2 class="pixel-font text-xl sm:text-2xl text-yellow-400 tracking-widest mb-2">PAUSA</h2>
+                    <p class="text-gray-400 text-sm sm:text-base mb-4">¡No dejes que se enfríen las alitas!</p>
+                    
+                    <button id="resume-btn" class="w-full btn-arcade btn-arcade-green bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded text-xs sm:text-sm border-2 border-emerald-300">
+                        ▶ CONTINUAR
+                    </button>
+                    
+                    <button id="pause-restart-btn" class="w-full btn-arcade btn-arcade-blue bg-blue-600 hover:bg-blue-500 text-white py-3 rounded text-xs sm:text-sm border-2 border-blue-300">
+                        ↻ REINICIAR
+                    </button>
+                    
+                    <button id="pause-sound-btn" class="w-full btn-arcade bg-amber-600 hover:bg-amber-500 text-white py-3 rounded text-xs sm:text-sm border-2 border-amber-300">
+                        🔊 SONIDO: ON
+                    </button>
+                    
+                    <button id="exit-menu-btn" class="w-full btn-arcade bg-red-700 hover:bg-red-600 text-white py-3 rounded text-xs sm:text-sm border-2 border-red-400">
+                        ✖ SALIR AL MENÚ
+                    </button>
+                </div>
+            </div>
+
+            <!-- Game Over Screen Overlay -->
+            <div id="gameover-screen" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-6 z-40 text-center">
+                <div class="text-2xl sm:text-4xl pixel-font text-red-600 mb-2 animate-pulse">GAME OVER</div>
+                <p id="final-comment" class="text-amber-400 text-lg sm:text-2xl mb-4">¡Se acabaron las alitas!</p>
+                
+                <div class="bg-gray-900 border-2 border-red-500 p-4 sm:p-5 rounded-lg mb-5 w-72 sm:w-80 max-w-full space-y-2.5">
+                    <div class="flex justify-between items-center text-base sm:text-lg">
+                        <span class="text-gray-400">PUNTUACIÓN:</span>
+                        <span id="final-score" class="text-yellow-400 pixel-font text-xs sm:text-base">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-base sm:text-lg">
+                        <span class="text-gray-400">RÉCORD:</span>
+                        <span id="highscore-val" class="text-green-400 pixel-font text-xs sm:text-base">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-base sm:text-lg">
+                        <span class="text-gray-400">NIVEL:</span>
+                        <span id="final-level" class="text-sky-400 pixel-font text-xs sm:text-base">1</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 w-72 sm:w-auto">
+                    <button id="restart-btn" class="btn-arcade btn-arcade-green bg-green-600 hover:bg-green-500 text-white px-5 py-3.5 rounded text-xs sm:text-sm uppercase tracking-wider border-2 border-yellow-400">
+                        VOLVER A JUGAR
+                    </button>
+                    <button id="gameover-menu-btn" class="btn-arcade bg-zinc-700 hover:bg-zinc-600 text-white px-5 py-3.5 rounded text-xs sm:text-sm uppercase tracking-wider border-2 border-gray-400">
+                        MENÚ PRINCIPAL
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Mobile Quick Touch Bar & Footer -->
+        <div class="bg-zinc-900 border-t border-gray-800 px-3 py-2 flex sm:hidden justify-between gap-3">
+            <button id="touch-left" class="flex-1 bg-zinc-800 active:bg-red-600 border border-zinc-600 py-2.5 rounded pixel-font text-sm text-yellow-400">◀ IZQ</button>
+            <button id="touch-right" class="flex-1 bg-zinc-800 active:bg-red-600 border border-zinc-600 py-2.5 rounded pixel-font text-sm text-yellow-400">DER ▶</button>
+        </div>
+
+        <footer class="bg-black/95 border-t border-gray-800 py-2 px-4 text-center text-xs text-gray-400 flex justify-between items-center">
+            <span>© 2026 S.N.A.X. ARCADE</span>
+            <span class="hidden sm:inline">TECLAS: ◀ ▶ / A-D | PAUSA: P / ESC</span>
+            <button id="sound-toggle" class="text-yellow-400 hover:text-white transition">🔊 AUDIO: ON</button>
+        </footer>
+
+    </div>
+
+    <!-- Game Logic, Pixel Art Matrices & Sound Engine -->
+    <script>
+        // --- Web Audio API Retro Sound Synthesizer ---
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'catch') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(340, now);
+                osc.frequency.exponentialRampToValueAtTime(680, now + 0.09);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+                osc.start(now);
+                osc.stop(now + 0.09);
+            } else if (type === 'combo') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(587.33, now + 0.06);
+                osc.frequency.setValueAtTime(880, now + 0.12);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+                osc.start(now);
+                osc.stop(now + 0.22);
+            } else if (type === 'bonus') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.07);
+                osc.frequency.setValueAtTime(783.99, now + 0.14);
+                osc.frequency.setValueAtTime(1046.50, now + 0.21);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
+                osc.start(now);
+                osc.stop(now + 0.32);
+            } else if (type === 'hurt') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.linearRampToValueAtTime(38, now + 0.28);
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+                osc.start(now);
+                osc.stop(now + 0.28);
+            } else if (type === 'pause') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(330, now);
+                osc.frequency.setValueAtTime(220, now + 0.08);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+                osc.start(now);
+                osc.stop(now + 0.16);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(240, now);
+                osc.frequency.setValueAtTime(190, now + 0.18);
+                osc.frequency.setValueAtTime(140, now + 0.36);
+                osc.frequency.linearRampToValueAtTime(65, now + 0.65);
+                gain.gain.setValueAtTime(0.24, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
+                osc.start(now);
+                osc.stop(now + 0.65);
+            } else if (type === 'levelup') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554.37, now + 0.09);
+                osc.frequency.setValueAtTime(659.25, now + 0.18);
+                osc.frequency.setValueAtTime(880, now + 0.27);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.42);
+                osc.start(now);
+                osc.stop(now + 0.42);
+            }
+        }
+
+        // --- 16x16 High-Detail Pixel Art Sprite Matrices ---
+        const PALETTE = {
+            '.': null,
+            'K': '#111827', // Dark outline
+            'W': '#ffffff', // Pure white
+            'B': '#fef08a', // Bone / light cream
+            'S': '#d97706', // Bone shadow
+            'O': '#f97316', // Buffalo orange
+            'R': '#dc2626', // Deep buffalo red
+            'H': '#fdba74', // Sauce highlight
+            'D': '#7f1d1d', // Dark shadow red
+            'Q': '#78350f', // BBQ dark brown
+            'M': '#9a3412', // BBQ medium brown
+            'C': '#d97706', // Crispy breading gold
+            'Y': '#facc15', // Fries bright yellow
+            'G': '#ca8a04', // Fries shadow gold
+            'L': '#84cc16', // Cucumber bright green
+            'E': '#15803d', // Cucumber dark skin
+            'P': '#bbf7d0', // Cucumber core
+            'N': '#ea580c', // Carrot bright orange
+            'T': '#9a3412', // Carrot dark line
+            'A': '#e5e7eb', // Ranch cup gray-white
+            'Z': '#9ca3af', // Ranch lid rim
+            'F': '#ef4444', // Flame red
+            'U': '#fde047', // Flame yellow core
+            'V': '#16a34a', // Chili stem green
+            'I': '#38bdf8', // Ice blue
+            'J': '#bae6fd', // Ice highlight
+            'X': '#0284c7'  // Ice deep shadow
+        };
+
+        const SPRITES = {
+            // 16x16 Alita Buffalo (huesito en punta + carne jugosa naranja/roja brillante)
+            wing_buffalo: [
+                "...........KK...",
+                "..........KWWK..",
+                ".........KWBBWK.",
+                "........KRRKWSK.",
+                "......KKRRHROKK.",
+                ".....KRRHHROORK.",
+                "....KRRHROOORRK.",
+                "...KRROOORRRDRK.",
+                "..KRROOORRRDDRK.",
+                ".KROOORRRDDDRK..",
+                ".KROORRRDDDRK...",
+                ".KRORRRDDDRK....",
+                "..KRRRDRRK......",
+                "...KKKKKK.......",
+                "................",
+                "................"
+            ],
+            // 16x16 Boneless BBQ (trozo empanizado irregular bañado en salsa café-rojiza brillante)
+            boneless_bbq: [
+                "................",
+                ".....KKKKK......",
+                "...KKQMMMQKK....",
+                "..KQMHHMMQQQK...",
+                ".KQMHMQRMMQQQK..",
+                ".KQMMQRRMMQQDK..",
+                "KQMMQRRRMMQQDDK.",
+                "KQMQRRRMMQQDDDK.",
+                "KQMMRRMMQQQDDDK.",
+                ".KQMMMMQQQDDDK..",
+                ".KQQMMQQQDDDDK..",
+                "..KQQQQDDDDKK...",
+                "...KKKKKKKK.....",
+                "................",
+                "................",
+                "................"
+            ],
+            // 16x16 Vasito de Ranch (vasito blanco con tapa translúcida y crema adentro)
+            ranch_cup: [
+                "................",
+                "...KKKKKKKKKK...",
+                "..KZZZZZZZZZZK..",
+                ".KWWWWWWWWWWWWK.",
+                ".KZZZZZZZZZZZZK.",
+                "..KWWWWWWWWWWK..",
+                "..KWWAAWWAAWWK..",
+                "..KWWWWWWWWWWK..",
+                "...KWWWWWWWWK...",
+                "...KWWAAWWAAK...",
+                "...KWWWWWWWWK...",
+                "....KWWWWWWK....",
+                "....KAAWWAAK....",
+                ".....KKKKKK.....",
+                "................",
+                "................"
+            ],
+            // 16x16 Bastones de Zanahoria y Pepino (crujientes como en la charola)
+            veggie_sticks: [
+                ".........KKK....",
+                "........KLLLK...",
+                ".......KLPPPLK..",
+                "...KKK.KLPPPLK..",
+                "..KNNNK.KLPPELK.",
+                ".KNNTNNK.KLPELK.",
+                ".KNNNNNK..KPELK.",
+                ".KNNTNNK..KPEK..",
+                ".KNNNNNK...KK...",
+                ".KNNTNNK........",
+                ".KNNNNNK........",
+                "..KNNNK.........",
+                "...KKK..........",
+                "................",
+                "................",
+                "................"
+            ],
+            // 16x16 Papas a la Francesa (bastones amarillos dorados con sal)
+            fries: [
+                "....KK..KK......",
+                "...KYYKKYYK.KK..",
+                "..KKYYKKYYKKYYK.",
+                ".KYYKYYKYYKKYYK.",
+                ".KYYKYYKYYGKYYK.",
+                ".KYYGYYGYYGKYYK.",
+                ".KRRRRRRRRRRRRK.",
+                ".KRRYYYYYYYYRRK.",
+                "..KRYYYYYYYYRK..",
+                "..KRRYYYYYYRRK..",
+                "..KRRRRRRRRRRK..",
+                "...KRRRRRRRRK...",
+                "....KKKKKKKK....",
+                "................",
+                "................",
+                "................"
+            ],
+            // 16x16 Chile Súper Picante con llamas (Obstáculo)
+            chili: [
+                ".......KKK......",
+                "......KVVVK.....",
+                ".....KVVKK......",
+                "....KFFFK..KK...",
+                "...KFFUFK.KFUK..",
+                "..KFFUUFKKFFUK..",
+                "..KFFUUFFFFFK...",
+                "..KFFUFFFFFK....",
+                "...KFFFFFFK.....",
+                "....KFFFFK......",
+                ".....KFFK.......",
+                "......KK........",
+                "................",
+                "................",
+                "................",
+                "................"
+            ],
+            // 16x16 Cubo de Hielo (Obstáculo)
+            ice: [
+                "................",
+                "..KKKKKKKKKKKK..",
+                ".KJJJJJJJJJJJIK.",
+                ".KJIIIIIIIIIIIK.",
+                ".KJIJJJIIIIIIIK.",
+                ".KJIJIIIIIIIIIK.",
+                ".KJIIIIIIIJJIIK.",
+                ".KJIIIIIIIJIIIK.",
+                ".KJIIIIIIIIIIIK.",
+                ".KIIIIIIIIIIIXK.",
+                ".KIIIIIIIIIIXXK.",
+                ".KXXXXXXXXXXXXK.",
+                "..KKKKKKKKKKKK..",
+                "................",
+                "................",
+                "................"
+            ],
+            // 12x12 Corazón Pixel Art para vidas
+            heart: [
+                ".KKK...KKK..",
+                "KRRRK.KRRRK.",
+                "KRHHRKRRRRRK",
+                "KRHRRRRRRRRK",
+                "KRRRRRRRRRRK",
+                ".KRRRRRRRRK.",
+                "..KRRRRRRK..",
+                "...KRRRRK...",
+                "....KRRK....",
+                ".....KK....."
+            ]
+        };
+
+        function drawPixelMatrix(targetCtx, matrix, x, y, pixelSize) {
+            for (let r = 0; r < matrix.length; r++) {
+                const row = matrix[r];
+                for (let c = 0; c < row.length; c++) {
+                    const color = PALETTE[row[c]];
+                    if (color) {
+                        targetCtx.fillStyle = color;
+                        targetCtx.fillRect(
+                            Math.floor(x + c * pixelSize),
+                            Math.floor(y + r * pixelSize),
+                            Math.ceil(pixelSize),
+                            Math.ceil(pixelSize)
+                        );
+                    }
+                }
+            }
+        }
+
+        // --- Game Setup & DOM References ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const startScreen = document.getElementById('start-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const gameOverScreen = document.getElementById('gameover-screen');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const resumeBtn = document.getElementById('resume-btn');
+        const pauseRestartBtn = document.getElementById('pause-restart-btn');
+        const pauseSoundBtn = document.getElementById('pause-sound-btn');
+        const exitMenuBtn = document.getElementById('exit-menu-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const gameOverMenuBtn = document.getElementById('gameover-menu-btn');
+        const soundToggleBtn = document.getElementById('sound-toggle');
+
+        const scoreValEl = document.getElementById('score-val');
+        const levelValEl = document.getElementById('level-val');
+        const livesContainerEl = document.getElementById('lives-container');
+        const comboBadgeEl = document.getElementById('combo-badge');
+        const startHighscoreEl = document.getElementById('start-highscore');
+        const finalScoreEl = document.getElementById('final-score');
+        const highscoreValEl = document.getElementById('highscore-val');
+        const finalLevelEl = document.getElementById('final-level');
+        const finalCommentEl = document.getElementById('final-comment');
+        const popupContainer = document.getElementById('popup-container');
+
+        let gameState = 'START'; // START, PLAYING, PAUSED, GAMEOVER
+        let animationFrameId = null;
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        let comboCount = 0;
+        let comboTimer = 0;
+        let highscore = parseInt(localStorage.getItem('snax_highscore') || '0', 10);
+        startHighscoreEl.textContent = highscore;
+
+        // Item Definitions
+        const itemTypes = [
+            { type: 'wing_buffalo', label: 'Alita Buffalo', pts: 10, prob: 0.30, badge: '+10 pts' },
+            { type: 'boneless_bbq', label: 'Boneless BBQ', pts: 15, prob: 0.25, badge: '+15 pts' },
+            { type: 'fries', label: 'Papas Doradas', pts: 25, prob: 0.15, badge: '+25 pts' },
+            { type: 'veggie_sticks', label: 'Zanahoria/Pepino', pts: 20, prob: 0.10, badge: '+20 pts' },
+            { type: 'ranch_cup', label: 'Vasito Ranch', pts: 30, prob: 0.08, badge: '+30 pts' },
+            { type: 'chili', label: 'Chile Picante', pts: -1, prob: 0.07, badge: '¡EVITA!', hazard: true },
+            { type: 'ice', label: 'Cubo de Hielo', pts: -1, prob: 0.05, badge: '¡EVITA!', hazard: true }
+        ];
+
+        // Populate Start Screen Visual Guide with actual rendered Pixel Art icons
+        function buildStartGuide() {
+            const grid = document.getElementById('item-guide-grid');
+            grid.innerHTML = '';
+            itemTypes.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center space-x-2 bg-black/60 p-1.5 rounded border border-gray-800';
+                
+                const miniCanvas = document.createElement('canvas');
+                miniCanvas.width = 32;
+                miniCanvas.height = 32;
+                miniCanvas.className = 'w-7 h-7 shrink-0';
+                const mCtx = miniCanvas.getContext('2d');
+                drawPixelMatrix(mCtx, SPRITES[item.type], 0, 0, 2);
+
+                const info = document.createElement('div');
+                info.className = 'leading-tight overflow-hidden';
+                info.innerHTML = `
+                    <div class="text-xs font-bold truncate ${item.hazard ? 'text-red-400' : 'text-white'}">${item.label}</div>
+                    <div class="pixel-font text-[9px] ${item.hazard ? 'text-red-500' : 'text-yellow-400'}">${item.badge}</div>
+                `;
+                row.appendChild(miniCanvas);
+                row.appendChild(info);
+                grid.appendChild(row);
+            });
+        }
+        buildStartGuide();
+
+        // Render pixel art hearts in HUD
+        function renderLivesHUD() {
+            livesContainerEl.innerHTML = '';
+            for (let i = 0; i < Math.max(0, lives); i++) {
+                const hCanvas = document.createElement('canvas');
+                hCanvas.width = 24;
+                hCanvas.height = 20;
+                hCanvas.className = 'w-4 h-3.5 sm:w-5 sm:h-4';
+                const hCtx = hCanvas.getContext('2d');
+                drawPixelMatrix(hCtx, SPRITES.heart, 0, 0, 2);
+                livesContainerEl.appendChild(hCanvas);
+            }
+        }
+
+        // Responsive Canvas Resize
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            if (player) {
+                player.y = canvas.height - 68;
+                if (player.x > canvas.width - player.width) {
+                    player.x = Math.max(0, canvas.width - player.width);
+                }
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Player: Charola negra de unicel con papel encerado de cuadros rojos y blancos
+        let player = {
+            width: 104,
+            height: 52,
+            x: 150,
+            y: 300,
+            speed: 9.5,
+            tilt: 0,
+            catchBounce: 0
+        };
+        resizeCanvas();
+        player.x = canvas.width / 2 - player.width / 2;
+
+        // Controls
+        let keys = { ArrowLeft: false, ArrowRight: false, KeyA: false, KeyD: false };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.ArrowLeft = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.ArrowRight = true;
+            if (e.code === 'KeyP' || e.code === 'Escape') {
+                if (gameState === 'PLAYING') pauseGame();
+                else if (gameState === 'PAUSED') resumeGame();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.ArrowLeft = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.ArrowRight = false;
+        });
+
+        // Mobile Touch Buttons
+        const touchLeftBtn = document.getElementById('touch-left');
+        const touchRightBtn = document.getElementById('touch-right');
+        touchLeftBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); keys.ArrowLeft = true; });
+        touchLeftBtn.addEventListener('pointerup', () => { keys.ArrowLeft = false; });
+        touchLeftBtn.addEventListener('pointerleave', () => { keys.ArrowLeft = false; });
+        touchRightBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); keys.ArrowRight = true; });
+        touchRightBtn.addEventListener('pointerup', () => { keys.ArrowRight = false; });
+        touchRightBtn.addEventListener('pointerleave', () => { keys.ArrowRight = false; });
+
+        // Direct Drag / Touch on Canvas
+        let isDragging = false;
+        canvas.addEventListener('pointerdown', (e) => {
+            if (gameState !== 'PLAYING') return;
+            isDragging = true;
+            updatePlayerX(e.clientX);
+        });
+        canvas.addEventListener('pointermove', (e) => {
+            if (isDragging && gameState === 'PLAYING') updatePlayerX(e.clientX);
+        });
+        window.addEventListener('pointerup', () => { isDragging = false; });
+
+        function updatePlayerX(clientX) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const canvasX = (clientX - rect.left) * scaleX;
+            const targetX = canvasX - player.width / 2;
+            player.tilt = Math.max(-0.08, Math.min(0.08, (targetX - player.x) * 0.01));
+            player.x = Math.max(0, Math.min(canvas.width - player.width, targetX));
+        }
+
+        // Particles & Falling Items
+        let items = [];
+        let particles = [];
+        let spawnTimer = 0;
+        let spawnInterval = 58;
+
+        function spawnParticles(x, y, colors, count = 10) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 7,
+                    vy: (Math.random() - 0.8) * 6,
+                    size: Math.floor(Math.random() * 4) + 3,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    life: 24 + Math.random() * 12
+                });
+            }
+        }
+
+        function spawnItem() {
+            let rand = Math.random();
+            let cumulative = 0;
+            let chosen = itemTypes[0];
+            for (let it of itemTypes) {
+                cumulative += it.prob;
+                if (rand <= cumulative) {
+                    chosen = it;
+                    break;
+                }
+            }
+
+            const size = 44; // 16x16 matrix scaled cleanly
+            const x = Math.random() * (canvas.width - size - 32) + 16;
+            const speed = (2.4 + Math.random() * 1.4) + (level * 0.38);
+
+            items.push({
+                ...chosen,
+                x: x,
+                y: -52,
+                size: size,
+                speed: speed,
+                wobblePhase: Math.random() * Math.PI * 2
+            });
+        }
+
+        function createPopup(text, x, y, color = '#facc15') {
+            const popup = document.createElement('div');
+            popup.className = 'absolute pixel-font text-[10px] sm:text-xs font-bold pointer-events-none transition-all duration-700 ease-out';
+            popup.style.left = `${Math.max(5, Math.min(82, (x / canvas.width) * 100))}%`;
+            popup.style.top = `${Math.max(10, Math.min(85, (y / canvas.height) * 100))}%`;
+            popup.style.color = color;
+            popup.style.textShadow = '2px 2px 0px #000';
+            popup.textContent = text;
+            popupContainer.appendChild(popup);
+            
+            requestAnimationFrame(() => {
+                popup.style.transform = 'translateY(-35px)';
+                popup.style.opacity = '0';
+            });
+            setTimeout(() => popup.remove(), 700);
+        }
+
+        // --- Render Player: Charola Negra de Unicel con Papel Encerado de Cuadros ---
+        function drawTakeoutTray(x, y, w, h) {
+            ctx.save();
+            const bounceOffset = player.catchBounce > 0 ? Math.sin(player.catchBounce * 0.5) * 4 : 0;
+            ctx.translate(x + w / 2, y + h / 2 + bounceOffset);
+            ctx.rotate(player.tilt);
+
+            const hw = w / 2;
+            const hh = h / 2;
+
+            // Open top lid of black styrofoam clamshell tray (back flap)
+            ctx.fillStyle = '#18181b';
+            ctx.fillRect(-hw + 6, -hh - 14, w - 12, 16);
+            ctx.strokeStyle = '#3f3f46';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-hw + 6, -hh - 14, w - 12, 16);
+
+            // Red & white checkered deli paper liner inside tray
+            const checkSize = 6;
+            const innerX = -hw + 8;
+            const innerY = -hh - 6;
+            const innerW = w - 16;
+            const innerH = 14;
+            for (let py = 0; py < innerH; py += checkSize) {
+                for (let px = 0; px < innerW; px += checkSize) {
+                    const isRed = ((px / checkSize) + (py / checkSize)) % 2 === 0;
+                    ctx.fillStyle = isRed ? '#dc2626' : '#f8fafc';
+                    ctx.fillRect(
+                        innerX + px,
+                        innerY + py,
+                        Math.min(checkSize, innerW - px),
+                        Math.min(checkSize, innerH - py)
+                    );
+                }
+            }
+
+            // Main black styrofoam base tray
+            ctx.fillStyle = '#09090b';
+            ctx.fillRect(-hw, -hh + 4, w, h - 4);
+
+            // Top rim & front latch tabs (iconic clamshell notches)
+            ctx.fillStyle = '#27272a';
+            ctx.fillRect(-hw - 3, -hh + 2, w + 6, 7);
+            ctx.fillRect(-hw + 16, hh - 2, 16, 6);
+            ctx.fillRect(hw - 32, hh - 2, 16, 6);
+
+            // Border highlight
+            ctx.strokeStyle = '#52525b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-hw, -hh + 4, w, h - 4);
+
+            // S.N.A.X. Arcade Badge on front of tray
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(-28, -hh + 15, 56, 18);
+            ctx.fillStyle = '#facc15';
+            ctx.font = 'bold 9px "Press Start 2P"';
+            ctx.textAlign = 'center';
+            ctx.fillText('S.N.A.X.', 0, -hh + 28);
+
+            ctx.restore();
+        }
+
+        // --- Game Loop Update ---
+        function updateGame() {
+            if (gameState !== 'PLAYING') return;
+
+            // Keyboard movement & smooth tilt
+            if (keys.ArrowLeft || keys.KeyA) {
+                player.x -= player.speed;
+                player.tilt = -0.05;
+            } else if (keys.ArrowRight || keys.KeyD) {
+                player.x += player.speed;
+                player.tilt = 0.05;
+            } else {
+                player.tilt *= 0.8;
+            }
+
+            if (player.catchBounce > 0) player.catchBounce--;
+
+            // Boundary constraints
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+
+            // Combo decay timer
+            if (comboCount > 1) {
+                comboTimer--;
+                if (comboTimer <= 0) {
+                    comboCount = 0;
+                    comboBadgeEl.classList.add('hidden');
+                }
+            }
+
+            // Item Spawning
+            spawnTimer++;
+            const currentSpawnRate = Math.max(24, spawnInterval - (level * 4));
+            if (spawnTimer >= currentSpawnRate) {
+                spawnItem();
+                spawnTimer = 0;
+            }
+
+            // Update falling items
+            for (let i = items.length - 1; i >= 0; i--) {
+                const it = items[i];
+                it.y += it.speed;
+                it.wobblePhase += 0.07;
+
+                const hitMargin = 8;
+                if (
+                    it.x + it.size - hitMargin > player.x &&
+                    it.x + hitMargin < player.x + player.width &&
+                    it.y + it.size - hitMargin > player.y - 6 &&
+                    it.y + hitMargin < player.y + player.height
+                ) {
+                    player.catchBounce = 10;
+
+                    if (it.hazard) {
+                        lives--;
+                        comboCount = 0;
+                        comboBadgeEl.classList.add('hidden');
+                        playSound('hurt');
+                        spawnParticles(it.x + it.size / 2, it.y + it.size / 2, ['#ef4444', '#facc15', '#38bdf8'], 14);
+                        createPopup('-1 VIDA', it.x, it.y - 10, '#ef4444');
+                        if (lives <= 0) {
+                            updateHUD();
+                            triggerGameOver();
+                            return;
+                        }
+                    } else {
+                        comboCount++;
+                        comboTimer = 110; // frames to keep combo alive
+                        const multiplier = comboCount >= 5 ? 2 : 1;
+                        const earned = it.pts * multiplier;
+                        score += earned;
+
+                        if (multiplier > 1) {
+                            comboBadgeEl.textContent = `COMBO x2`;
+                            comboBadgeEl.classList.remove('hidden');
+                            playSound('combo');
+                            createPopup(`+${earned} x2!`, it.x, it.y - 10, '#facc15');
+                        } else if (it.pts >= 25) {
+                            playSound('bonus');
+                            createPopup(`+${earned}`, it.x, it.y - 10, '#34d399');
+                        } else {
+                            playSound('catch');
+                            createPopup(`+${earned}`, it.x, it.y - 10, '#fde047');
+                        }
+
+                        spawnParticles(it.x + it.size / 2, it.y + it.size / 2, ['#f97316', '#facc15', '#ffffff'], 10);
+
+                        const newLevel = Math.floor(score / 150) + 1;
+                        if (newLevel > level) {
+                            level = newLevel;
+                            playSound('levelup');
+                            createPopup(`¡NIVEL ${level}!`, canvas.width / 2 - 45, canvas.height / 2, '#38bdf8');
+                        }
+                    }
+
+                    items.splice(i, 1);
+                    updateHUD();
+                    continue;
+                }
+
+                // Missed item (reset combo if good food drops)
+                if (it.y > canvas.height + 40) {
+                    if (!it.hazard && comboCount > 0) {
+                        comboCount = 0;
+                        comboBadgeEl.classList.add('hidden');
+                    }
+                    items.splice(i, 1);
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.25; // gravity
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        // --- Render Frame ---
+        function renderGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Retro subtle grid floor
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 32) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 32) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Render Pixel Art falling items
+            for (const it of items) {
+                const wobbleX = Math.sin(it.wobblePhase) * 2.5;
+                const pixelScale = it.size / 16;
+                drawPixelMatrix(ctx, SPRITES[it.type], it.x + wobbleX, it.y, pixelScale);
+            }
+
+            // Render Pixel Particles
+            for (const p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
+            }
+
+            // Render Player Black Foam Tray
+            drawTakeoutTray(player.x, player.y, player.width, player.height);
+        }
+
+        function gameLoop() {
+            if (gameState !== 'PLAYING') return;
+            updateGame();
+            renderGame();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateHUD() {
+            scoreValEl.textContent = String(score).padStart(6, '0');
+            levelValEl.textContent = level;
+            renderLivesHUD();
+        }
+
+        function syncSoundButtons() {
+            const label = soundEnabled ? '🔊 AUDIO: ON' : '🔇 AUDIO: OFF';
+            const pauseLabel = soundEnabled ? '🔊 SONIDO: ON' : '🔇 SONIDO: OFF';
+            soundToggleBtn.textContent = label;
+            pauseSoundBtn.textContent = pauseLabel;
+        }
+
+        // --- State Transitions (Start, Pause, Resume, Restart, Exit, GameOver) ---
+        function startGame() {
+            initAudio();
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            score = 0;
+            lives = 3;
+            level = 1;
+            comboCount = 0;
+            comboTimer = 0;
+            items = [];
+            particles = [];
+            spawnTimer = 0;
+            comboBadgeEl.classList.add('hidden');
+
+            resizeCanvas();
+            player.x = canvas.width / 2 - player.width / 2;
+            updateHUD();
+
+            startScreen.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            pauseScreen.classList.remove('flex');
+            gameOverScreen.classList.add('hidden');
+            gameOverScreen.classList.remove('flex');
+            pauseBtn.classList.remove('hidden');
+
+            gameState = 'PLAYING';
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function pauseGame() {
+            if (gameState !== 'PLAYING') return;
+            gameState = 'PAUSED';
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            playSound('pause');
+            pauseScreen.classList.remove('hidden');
+            pauseScreen.classList.add('flex');
+        }
+
+        function resumeGame() {
+            if (gameState !== 'PAUSED') return;
+            pauseScreen.classList.add('hidden');
+            pauseScreen.classList.remove('flex');
+            gameState = 'PLAYING';
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function exitToMainMenu() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameState = 'START';
+            items = [];
+            particles = [];
+            comboBadgeEl.classList.add('hidden');
+            pauseBtn.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            pauseScreen.classList.remove('flex');
+            gameOverScreen.classList.add('hidden');
+            gameOverScreen.classList.remove('flex');
+            startScreen.classList.remove('hidden');
+            startHighscoreEl.textContent = highscore;
+            renderGame();
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            pauseBtn.classList.add('hidden');
+            playSound('gameover');
+
+            if (score > highscore) {
+                highscore = score;
+                localStorage.setItem('snax_highscore', String(highscore));
+                startHighscoreEl.textContent = highscore;
+                finalCommentEl.textContent = '¡NUEVO RÉCORD DE ALITAS!';
+            } else {
+                finalCommentEl.textContent = '¡Se acabaron las alitas!';
+            }
+
+            finalScoreEl.textContent = score;
+            highscoreValEl.textContent = highscore;
+            finalLevelEl.textContent = level;
+            gameOverScreen.classList.remove('hidden');
+            gameOverScreen.classList.add('flex');
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startGame);
+        pauseBtn.addEventListener('click', pauseGame);
+        resumeBtn.addEventListener('click', resumeGame);
+        pauseRestartBtn.addEventListener('click', startGame);
+        exitMenuBtn.addEventListener('click', exitToMainMenu);
+        restartBtn.addEventListener('click', startGame);
+        gameOverMenuBtn.addEventListener('click', exitToMainMenu);
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            syncSoundButtons();
+        }
+        soundToggleBtn.addEventListener('click', toggleAudio);
+        pauseSoundBtn.addEventListener('click', toggleAudio);
+
+        // Initial render
+        renderLivesHUD();
+        renderGame();
+    </script>
+</body>
+</html>
