@@ -11,10 +11,10 @@
     <!-- Custom Arcade Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="min-h-[100dvh] flex flex-col items-center justify-center p-1 sm:p-4 select-none">
+<body class="min-h-[100dvh] flex flex-col items-center justify-center p-1.5 sm:p-4 select-none">
 
     <!-- Main Game Container -->
-    <div id="game-container" class="relative w-full max-w-2xl bg-gray-950 arcade-box rounded-lg overflow-hidden flex flex-col crt shadow-2xl">
+    <div id="game-container" class="relative w-full max-w-2xl bg-[#0b0d14] arcade-box rounded-lg overflow-hidden flex flex-col crt shadow-2xl">
         
         <!-- Top HUD Header (Oculto mientras está en la pantalla de Login/Inicio) -->
         <header id="game-hud" class="hidden bg-black/95 border-b-2 border-red-600 px-2 sm:px-4 py-2 flex flex-wrap justify-between items-center gap-1.5 z-30 shrink-0">
@@ -22,7 +22,7 @@
                 <span class="pixel-font text-[10px] sm:text-sm text-yellow-400 shrink-0">S.N.A.X.</span>
                 <span id="hud-player-tag" class="hidden md:inline-block pixel-font text-[9px] bg-zinc-800 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded truncate max-w-[100px]">PLAYER</span>
                 <span id="combo-badge" class="hidden pixel-font text-[8px] sm:text-[10px] bg-amber-500 text-black px-1 py-0.5 rounded animate-bounce shrink-0">x2</span>
-                <span id="ai-skill-badge" class="hidden pixel-font text-[7px] sm:text-[8px] bg-red-600 text-white px-1 py-0.5 rounded border border-yellow-300 shrink-0">IA: PRO</span>
+                <span id="ai-skill-badge" class="pixel-font text-[7px] sm:text-[8px] bg-zinc-800 text-gray-200 px-1.5 py-0.5 rounded border border-zinc-600 shrink-0">IA: ESTÁNDAR</span>
             </div>
             
             <div class="flex items-center gap-2 sm:gap-4 pixel-font shrink-0 ml-auto">
@@ -45,52 +45,76 @@
             </div>
         </header>
 
-        <!-- Dedicated Start / Login Screen (Visible al inicio, se oculta al pulsar JUGAR) -->
-        <section id="start-screen" class="w-full min-h-[460px] sm:min-h-[520px] bg-gradient-to-b from-slate-950 via-zinc-950 to-black flex flex-col items-center justify-center p-3 sm:p-6 z-30 text-center">
-            <div class="mb-1 text-yellow-400 pixel-font text-[10px] sm:text-base animate-pulse">★ S.N.A.X. ARCADE ★</div>
-            <h1 class="text-base sm:text-2xl pixel-font text-red-500 mb-2 tracking-wider drop-shadow-[0_4px_4px_rgba(239,68,68,0.8)]">WINGS & BONELESS RUSH</h1>
+        <!-- Dedicated Start / Login Screen (Estilo idéntico a la captura de referencia) -->
+        <section id="start-screen" class="w-full min-h-[480px] sm:min-h-[540px] bg-[#0b0e17] flex flex-col items-center justify-center px-4 py-6 sm:p-8 z-30 text-center">
             
-            <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[9px] sm:text-xs pixel-font text-green-400 mb-3">
-                <span>HIGH SCORE: <span id="start-highscore" class="text-yellow-400">0</span></span>
-                <span id="sheets-status-pill" class="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-gray-400 text-[8px] sm:text-[9px]">SHEETS: LOCAL</span>
+            <!-- Top Eyebrow -->
+            <div class="mb-3 sm:mb-4 text-[#facc15] pixel-font text-[9px] sm:text-xs tracking-[0.18em] flex items-center justify-center gap-2 drop-shadow-[0_0_8px_rgba(250,204,21,0.45)]">
+                <span class="text-orange-500">♦</span>
+                <span>S.N.A.X. PRESENTA</span>
+                <span class="text-orange-500">♦</span>
             </div>
 
+            <!-- Main Retro Stacked Title -->
+            <h1 class="pixel-font uppercase leading-[1.22] mb-3 sm:mb-4 select-none">
+                <span class="block text-2xl sm:text-4xl md:text-[42px] text-white title-pixel-shadow tracking-wider">
+                    WINGS <span class="text-[#facc15]">&amp;</span>
+                </span>
+                <span class="block text-2xl sm:text-4xl md:text-[42px] text-white title-pixel-shadow tracking-wider mt-1">
+                    BONELESS RUSH
+                </span>
+            </h1>
+
+            <!-- Orange Subtitle -->
+            <p class="pixel-font text-[9px] sm:text-xs text-[#fb923c] tracking-[0.12em] uppercase mb-4 sm:mb-5">
+                ATRAPA EL SABOR. ESQUIVA EL CAOS.
+            </p>
+            
+            <!-- High Score & Sheets Status Pill Box -->
+            <div class="inline-flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 bg-[#111522] border border-slate-800/90 rounded-lg px-3.5 sm:px-4 py-2 mb-4 shadow-inner">
+                <span class="pixel-font text-[10px] sm:text-xs text-[#4ade80] tracking-wider">
+                    HIGH SCORE: <span id="start-highscore" class="text-[#facc15]">0</span>
+                </span>
+                <span id="sheets-status-pill" class="pixel-font px-2.5 py-1 rounded bg-[#07261d] border border-[#10b981] text-[#34d399] text-[8px] sm:text-[9px] tracking-wider">
+                    CONECTADO
+                </span>
+            </div>
+
+            <!-- Descriptive Tagline -->
+            <p class="text-slate-300 text-base sm:text-xl max-w-md leading-snug mb-4 sm:mb-5 px-2">
+                Desliza tu charola, atrapa tus favoritos y consigue la mejor puntuación. ¿Tienes lo necesario para llegar al premio máximo?
+            </p>
+
             <!-- Player Login Box (Se oculta una vez registrado el usuario) -->
-            <div id="login-box" class="bg-gray-900 border-2 border-red-500/80 p-2.5 sm:p-3 rounded-lg mb-3 w-full max-w-md text-left shadow-lg">
-                <label for="player-name-input" class="block pixel-font text-[8px] sm:text-[10px] text-yellow-400 mb-1.5">
-                    👤 NOMBRE DEL JUGADOR (ÚNICO):
+            <div id="login-box" class="bg-[#111522] border border-slate-700/80 p-3 rounded-lg mb-4 w-full max-w-md text-left shadow-lg">
+                <label for="player-name-input" class="block pixel-font text-[8px] sm:text-[10px] text-[#facc15] mb-2">
+                    👤 TU NOMBRE O APODO PARA JUGAR:
                 </label>
-                <div class="flex gap-2">
-                    <input
-                        type="text"
-                        id="player-name-input"
-                        maxlength="24"
-                        placeholder="Ej. Jony / Tu Apodo..."
-                        class="flex-1 bg-black border-2 border-amber-500/60 focus:border-yellow-400 rounded px-2.5 py-2 text-white text-sm sm:text-base outline-none"
-                    />
-                </div>
-                <p id="login-error-msg" class="hidden text-red-400 text-xs mt-1.5 font-bold">⚠ Escribe tu nombre o apodo para iniciar y registrar tu partida.</p>
+                <input
+                    type="text"
+                    id="player-name-input"
+                    maxlength="24"
+                    placeholder="Ej. Jony / Tu Apodo..."
+                    class="w-full bg-[#080a10] border-2 border-slate-700 focus:border-[#facc15] rounded px-3 py-2 text-white text-base sm:text-lg outline-none transition"
+                />
+                <p id="login-error-msg" class="hidden text-red-400 text-sm mt-1.5 font-bold">⚠ Escribe tu nombre o apodo para iniciar y registrar tu partida.</p>
             </div>
 
             <!-- Locked Player Badge (Aparece en lugar del login cuando ya tiene usuario) -->
-            <div id="locked-player-banner" class="hidden bg-zinc-900/95 border-2 border-amber-500/70 px-3 py-2 rounded-lg mb-3 w-full max-w-md flex items-center justify-between">
-                <span class="pixel-font text-[8px] sm:text-[10px] text-gray-300">🔒 JUGADOR:</span>
-                <span id="locked-player-display" class="pixel-font text-[9px] sm:text-xs text-yellow-400 truncate max-w-[190px]">JUGADOR</span>
+            <div id="locked-player-banner" class="hidden bg-[#111522] border border-amber-500/50 px-3.5 py-2.5 rounded-lg mb-4 w-full max-w-md flex items-center justify-between">
+                <span class="pixel-font text-[8px] sm:text-[10px] text-slate-400">🔒 JUGADOR:</span>
+                <span id="locked-player-display" class="pixel-font text-[9px] sm:text-xs text-[#facc15] truncate max-w-[200px]">JUGADOR</span>
             </div>
 
-            <!-- Visual Pixel Art Legend -->
-            <div class="bg-gray-900/95 border-2 border-amber-500/60 p-2 sm:p-3 rounded-lg mb-3.5 w-full max-w-md text-left">
-                <p class="text-yellow-400 pixel-font text-[8px] sm:text-[10px] mb-2 text-center border-b border-gray-800 pb-1">GUÍA DEL MENÚ PIXEL ART</p>
-                <div id="item-guide-grid" class="grid grid-cols-2 gap-1.5 text-xs text-gray-200">
-                    <!-- Dynamically populated with mini pixel canvases -->
-                </div>
-            </div>
-
-            <div class="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-                <button id="start-btn" class="btn-arcade bg-red-600 hover:bg-red-500 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded text-[11px] sm:text-sm uppercase tracking-widest border-2 border-yellow-400">
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center justify-center gap-3 w-full max-w-md">
+                <button id="start-btn" class="flex-1 sm:flex-initial btn-arcade bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded text-[11px] sm:text-sm uppercase tracking-widest border-2 border-yellow-400">
                     ▶ JUGAR
                 </button>
-                <button id="open-rewards-btn" class="btn-arcade btn-arcade-amber bg-amber-500 hover:bg-amber-400 text-black px-3.5 sm:px-4 py-2.5 sm:py-3 rounded text-[11px] sm:text-sm uppercase tracking-wider border-2 border-white">
+                <button id="open-guide-btn" class="btn-arcade btn-arcade-blue bg-slate-800 hover:bg-slate-700 text-sky-300 px-3.5 py-3 rounded text-[10px] sm:text-xs uppercase tracking-wider border-2 border-sky-400/70">
+                    📖 GUÍA
+                </button>
+                <button id="open-rewards-btn" class="btn-arcade btn-arcade-amber bg-amber-500 hover:bg-amber-400 text-black px-4 py-3 rounded text-[10px] sm:text-xs uppercase tracking-wider border-2 border-white">
                     🎁 PREMIOS
                 </button>
             </div>
@@ -196,35 +220,23 @@
 
         </div>
 
-        <!-- Google Sheets Webhook Config Modal -->
-        <div id="sheets-modal" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-4 z-50 text-center overflow-y-auto">
-            <div class="bg-gray-950 border-4 border-emerald-400 p-4 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(16,185,129,0.4)] text-left">
-                <h2 class="pixel-font text-xs sm:text-sm text-emerald-400 mb-1 text-center">📊 CONEXIÓN GOOGLE SHEETS</h2>
-                <p class="text-gray-300 text-xs mb-2.5">Pega la URL de tu aplicación web implementada desde <strong>code.gs</strong> en Google Apps Script:</p>
-                
-                <input
-                    type="url"
-                    id="sheets-url-input"
-                    placeholder="https://script.google.com/macros/s/.../exec"
-                    class="w-full bg-black border-2 border-emerald-500/70 focus:border-emerald-300 rounded px-2.5 py-2 text-white text-xs sm:text-sm outline-none mb-2"
-                />
-
-                <div id="sheets-test-feedback" class="text-xs text-amber-300 mb-3 min-h-[18px]"></div>
-
-                <div class="flex gap-2">
-                    <button id="save-sheets-btn" type="button" class="flex-1 btn-arcade btn-arcade-green bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-[10px] sm:text-xs border-2 border-emerald-300">
-                        GUARDAR URL
-                    </button>
-                    <button id="close-sheets-btn" type="button" class="btn-arcade bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-2 rounded text-[10px] sm:text-xs border-2 border-gray-400">
-                        CERRAR
-                    </button>
+        <!-- Pixel Art Menu Guide Modal -->
+        <div id="guide-modal" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-4 sm:p-6 z-50 text-center overflow-y-auto">
+            <div class="bg-[#0f1320] border-4 border-sky-400 p-4 sm:p-5 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(56,189,248,0.35)]">
+                <h2 class="pixel-font text-xs sm:text-base text-sky-400 mb-1">📖 GUÍA DEL MENÚ</h2>
+                <p class="text-gray-300 text-xs sm:text-sm mb-3">Atrapa los pedidos S.N.A.X. y esquiva lo picante o frío:</p>
+                <div id="item-guide-grid" class="grid grid-cols-2 gap-2 text-left mb-4">
+                    <!-- Dynamically populated with mini pixel canvases -->
                 </div>
+                <button id="close-guide-btn" class="w-full btn-arcade bg-red-600 hover:bg-red-500 text-white py-2.5 rounded text-xs sm:text-sm border-2 border-yellow-400">
+                    ENTENDIDO
+                </button>
             </div>
         </div>
 
         <!-- Rewards Catalog Modal (From Start Screen) -->
         <div id="rewards-modal" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-4 sm:p-6 z-50 text-center overflow-y-auto">
-            <div class="bg-gray-950 border-4 border-yellow-400 p-4 sm:p-5 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(250,204,21,0.4)]">
+            <div class="bg-[#0f1320] border-4 border-yellow-400 p-4 sm:p-5 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(250,204,21,0.4)]">
                 <h2 class="pixel-font text-sm sm:text-lg text-yellow-400 mb-1">🎁 PREMIOS S.N.A.X.</h2>
                 <p class="text-gray-300 text-xs sm:text-sm mb-3">Supera estas puntuaciones en una partida y desbloquea tu cupón:</p>
                 
