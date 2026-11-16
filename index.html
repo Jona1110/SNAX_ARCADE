@@ -233,7 +233,7 @@
 
                 <!-- Next Reward Hint when no reward unlocked yet -->
                 <div id="no-coupon-hint" class="hidden w-full max-w-sm mb-3 bg-gray-900/90 border border-gray-700 rounded-lg p-2.5 text-xs text-gray-300">
-                    🎯 ¡Llega a <span class="text-yellow-400 font-bold">500 PTS</span> para desbloquear tu primer cupón de descuento!
+                    🎯 ¡Llega a <span class="text-yellow-400 font-bold">800 PTS</span> para desbloquear tu primer cupón de descuento!
                 </div>
 
                 <div class="flex flex-col sm:flex-row gap-2.5 w-full max-w-sm justify-center">
@@ -264,9 +264,25 @@
 
     <!-- Game Logic, Pixel Art Matrices & Sound Engine -->
     <script>
-        // --- Web Audio API Retro Sound Synthesizer ---
+        // --- Web Audio API Retro Sound & Chiptune BGM Synthesizer ---
         let soundEnabled = true;
         let audioCtx = null;
+        let bgmInterval = null;
+        let bgmStep = 0;
+
+        // Upbeat 8-bit arcade melody & bassline sequence (16 steps)
+        const BGM_LEAD = [
+            523.25, 0, 659.25, 783.99,
+            659.25, 0, 523.25, 587.33,
+            659.25, 783.99, 880.00, 783.99,
+            659.25, 587.33, 523.25, 0
+        ];
+        const BGM_BASS = [
+            130.81, 130.81, 196.00, 196.00,
+            174.61, 174.61, 130.81, 130.81,
+            146.83, 146.83, 196.00, 196.00,
+            130.81, 196.00, 130.81, 0
+        ];
 
         function initAudio() {
             if (!audioCtx) {
@@ -274,6 +290,54 @@
             }
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
+            }
+        }
+
+        function startBGM() {
+            stopBGM();
+            if (!soundEnabled) return;
+            initAudio();
+            bgmStep = 0;
+            bgmInterval = setInterval(() => {
+                if (!soundEnabled || gameState !== 'PLAYING' || !audioCtx) return;
+                const now = audioCtx.currentTime;
+                const leadFreq = BGM_LEAD[bgmStep % BGM_LEAD.length];
+                const bassFreq = BGM_BASS[bgmStep % BGM_BASS.length];
+
+                if (leadFreq > 0) {
+                    const oscLead = audioCtx.createOscillator();
+                    const gainLead = audioCtx.createGain();
+                    oscLead.type = 'square';
+                    oscLead.frequency.setValueAtTime(leadFreq, now);
+                    gainLead.gain.setValueAtTime(0.035, now);
+                    gainLead.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                    oscLead.connect(gainLead);
+                    gainLead.connect(audioCtx.destination);
+                    oscLead.start(now);
+                    oscLead.stop(now + 0.14);
+                }
+
+                if (bassFreq > 0) {
+                    const oscBass = audioCtx.createOscillator();
+                    const gainBass = audioCtx.createGain();
+                    oscBass.type = 'triangle';
+                    oscBass.frequency.setValueAtTime(bassFreq, now);
+                    gainBass.gain.setValueAtTime(0.055, now);
+                    gainBass.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    oscBass.connect(gainBass);
+                    gainBass.connect(audioCtx.destination);
+                    oscBass.start(now);
+                    oscBass.stop(now + 0.15);
+                }
+
+                bgmStep++;
+            }, 175);
+        }
+
+        function stopBGM() {
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
             }
         }
 
@@ -289,23 +353,62 @@
 
             const now = audioCtx.currentTime;
 
-            if (type === 'catch') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(340, now);
-                osc.frequency.exponentialRampToValueAtTime(680, now + 0.09);
-                gain.gain.setValueAtTime(0.15, now);
+            if (type === 'wing_buffalo') {
+                // Alita ATOMIC: sharp fiery upward synth blip
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(320, now);
+                osc.frequency.exponentialRampToValueAtTime(640, now + 0.09);
+                gain.gain.setValueAtTime(0.13, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
                 osc.start(now);
                 osc.stop(now + 0.09);
-            } else if (type === 'combo') {
+            } else if (type === 'veggie_sticks') {
+                // Zanahoria/Pepino: crisp fresh high woodblock-like ping
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(620, now);
+                osc.frequency.setValueAtTime(840, now + 0.04);
+                gain.gain.setValueAtTime(0.16, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+                osc.start(now);
+                osc.stop(now + 0.09);
+            } else if (type === 'boneless_bbq') {
+                // Boneless BBQ: punchy double-note arcade chime
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(440, now);
-                osc.frequency.setValueAtTime(587.33, now + 0.06);
-                osc.frequency.setValueAtTime(880, now + 0.12);
-                gain.gain.setValueAtTime(0.14, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+                osc.frequency.setValueAtTime(659.25, now + 0.06);
+                gain.gain.setValueAtTime(0.13, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
                 osc.start(now);
-                osc.stop(now + 0.22);
+                osc.stop(now + 0.14);
+            } else if (type === 'fries') {
+                // Papas francesas: golden coin triple arpeggio
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(587.33, now);
+                osc.frequency.setValueAtTime(783.99, now + 0.05);
+                osc.frequency.setValueAtTime(1046.50, now + 0.10);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                osc.start(now);
+                osc.stop(now + 0.18);
+            } else if (type === 'ranch_cup') {
+                // Vasito Ranch: bubbly creamy sweep
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(920, now + 0.15);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+                osc.start(now);
+                osc.stop(now + 0.16);
+            } else if (type === 'combo') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.05);
+                osc.frequency.setValueAtTime(783.99, now + 0.10);
+                osc.frequency.setValueAtTime(1046.50, now + 0.15);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.24);
+                osc.start(now);
+                osc.stop(now + 0.24);
             } else if (type === 'bonus') {
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(523.25, now);
@@ -614,11 +717,11 @@
         let highscore = parseInt(localStorage.getItem('snax_highscore') || '0', 10);
         startHighscoreEl.textContent = highscore;
 
-        // Milestone Rewards Configuration
+        // Milestone Rewards Configuration (Higher thresholds adjusted to 5pt / 10pt economy)
         const REWARD_TIERS = [
             {
                 id: 'disc10',
-                points: 500,
+                points: 800,
                 title: '10% DE DESCUENTO',
                 shortLabel: '10% OFF',
                 code: 'SNAX10',
@@ -626,15 +729,15 @@
             },
             {
                 id: 'freefries',
-                points: 1200,
-                title: 'PAPAS FRITAS GRATIS',
+                points: 1800,
+                title: 'PAPAS FRANCESAS GRATIS',
                 shortLabel: 'PAPAS GRATIS',
                 code: 'PAPAS8BIT',
                 desc: 'Orden de papas doradas gratis al comprar tu combo'
             },
             {
                 id: 'extrapcs',
-                points: 2200,
+                points: 3000,
                 title: '+3 PIEZAS EXTRA GRATIS',
                 shortLabel: '+3 PIEZAS',
                 code: '3EXTRAS',
@@ -642,7 +745,7 @@
             },
             {
                 id: 'kingcombo',
-                points: 3500,
+                points: 4500,
                 title: '20% OFF + PAPAS GRATIS',
                 shortLabel: 'REY ARCADE',
                 code: 'REYARCADE',
@@ -693,14 +796,14 @@
             }
         }
 
-        // Item Definitions
+        // Item Definitions (5 pts common items vs 10 pts rarer items)
         const itemTypes = [
-            { type: 'wing_buffalo', label: 'Alita ATOMIC', pts: 10, prob: 0.30, badge: '+10 pts' },
-            { type: 'boneless_bbq', label: 'Boneless BBQ', pts: 15, prob: 0.25, badge: '+15 pts' },
-            { type: 'fries', label: 'Papas francesas', pts: 25, prob: 0.15, badge: '+25 pts' },
-            { type: 'veggie_sticks', label: 'Zanahoria/Pepino', pts: 20, prob: 0.10, badge: '+20 pts' },
-            { type: 'ranch_cup', label: 'Vasito Ranch', pts: 30, prob: 0.08, badge: '+30 pts' },
-            { type: 'chili', label: 'Chile Picante', pts: -1, prob: 0.07, badge: '¡EVITA!', hazard: true },
+            { type: 'wing_buffalo', label: 'Alita ATOMIC', pts: 5, prob: 0.36, badge: '+5 pts' },
+            { type: 'veggie_sticks', label: 'Zanahoria/Pepino', pts: 5, prob: 0.24, badge: '+5 pts' },
+            { type: 'boneless_bbq', label: 'Boneless BBQ', pts: 10, prob: 0.11, badge: '+10 pts' },
+            { type: 'fries', label: 'Papas francesas', pts: 10, prob: 0.09, badge: '+10 pts' },
+            { type: 'ranch_cup', label: 'Vasito Ranch', pts: 10, prob: 0.07, badge: '+10 pts' },
+            { type: 'chili', label: 'Chile Picante', pts: -1, prob: 0.08, badge: '¡EVITA!', hazard: true },
             { type: 'ice', label: 'Cubo de Hielo', pts: -1, prob: 0.05, badge: '¡EVITA!', hazard: true }
         ];
 
@@ -1018,16 +1121,17 @@
                         const earned = it.pts * multiplier;
                         score += earned;
 
+                        // Play each item's signature sound effect
+                        playSound(it.type);
+
                         if (multiplier > 1) {
                             comboBadgeEl.textContent = `COMBO x2`;
                             comboBadgeEl.classList.remove('hidden');
                             playSound('combo');
                             createPopup(`+${earned} x2!`, it.x, it.y - 10, '#facc15');
-                        } else if (it.pts >= 25) {
-                            playSound('bonus');
+                        } else if (it.pts >= 10) {
                             createPopup(`+${earned}`, it.x, it.y - 10, '#34d399');
                         } else {
-                            playSound('catch');
                             createPopup(`+${earned}`, it.x, it.y - 10, '#fde047');
                         }
 
@@ -1036,7 +1140,7 @@
                         // Check if player unlocked a real promo coupon
                         checkMilestoneRewards();
 
-                        const newLevel = Math.floor(score / 150) + 1;
+                        const newLevel = Math.floor(score / 200) + 1;
                         if (newLevel > level) {
                             level = newLevel;
                             playSound('levelup');
@@ -1159,12 +1263,14 @@
             pauseBtn.classList.remove('hidden');
 
             gameState = 'PLAYING';
+            startBGM();
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
         function pauseGame() {
             if (gameState !== 'PLAYING') return;
             gameState = 'PAUSED';
+            stopBGM();
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             playSound('pause');
             pauseScreen.classList.remove('hidden');
@@ -1176,10 +1282,12 @@
             pauseScreen.classList.add('hidden');
             pauseScreen.classList.remove('flex');
             gameState = 'PLAYING';
+            startBGM();
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
         function exitToMainMenu() {
+            stopBGM();
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             gameState = 'START';
             items = [];
@@ -1197,6 +1305,7 @@
 
         function triggerGameOver() {
             gameState = 'GAMEOVER';
+            stopBGM();
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             pauseBtn.classList.add('hidden');
             rewardToast.classList.add('hidden');
@@ -1293,6 +1402,11 @@
         function toggleAudio() {
             soundEnabled = !soundEnabled;
             syncSoundButtons();
+            if (soundEnabled && gameState === 'PLAYING') {
+                startBGM();
+            } else {
+                stopBGM();
+            }
         }
         soundToggleBtn.addEventListener('click', toggleAudio);
         pauseSoundBtn.addEventListener('click', toggleAudio);
