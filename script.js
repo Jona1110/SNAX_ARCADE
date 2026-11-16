@@ -469,7 +469,6 @@ let comboTimer = 0;
 let currentPlayerName = (localStorage.getItem('snax_player_name') || '').trim();
 let highscore = parseInt(localStorage.getItem('snax_highscore') || '0', 10);
 
-// Alterna entre pantalla de Login/Inicio y pantalla de Juego
 function showLoginScreen() {
     if (startScreen) startScreen.classList.remove('hidden');
     if (gameHud) gameHud.classList.add('hidden');
@@ -484,7 +483,6 @@ function showGameScreen() {
     if (mobileTouchBar) mobileTouchBar.classList.remove('hidden');
 }
 
-// Sincroniza la UI del login: si ya existe usuario guardado, oculta el login y bloquea el nombre
 function syncPlayerLoginUI() {
     if (currentPlayerName) {
         if (loginBox) loginBox.classList.add('hidden');
@@ -549,12 +547,12 @@ function updateAdaptiveDifficulty() {
     if (playerMetrics.skillRating >= 1.42) {
         playerMetrics.tierLabel = 'MODO PRO+';
         aiSkillBadgeEl.textContent = 'IA: PRO+';
-        aiSkillBadgeEl.className = 'pixel-font text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded border border-yellow-300';
+        aiSkillBadgeEl.className = 'pixel-font text-[7px] sm:text-[8px] bg-red-600 text-white px-1 py-0.5 rounded border border-yellow-300 shrink-0';
         aiSkillBadgeEl.classList.remove('hidden');
     } else if (playerMetrics.skillRating >= 1.20) {
         playerMetrics.tierLabel = 'RETO ALTO';
         aiSkillBadgeEl.textContent = 'IA: ALTO';
-        aiSkillBadgeEl.className = 'pixel-font text-[8px] bg-amber-500 text-black px-1.5 py-0.5 rounded border border-white';
+        aiSkillBadgeEl.className = 'pixel-font text-[7px] sm:text-[8px] bg-amber-500 text-black px-1 py-0.5 rounded border border-white shrink-0';
         aiSkillBadgeEl.classList.remove('hidden');
     } else {
         playerMetrics.tierLabel = 'ESTÁNDAR';
@@ -562,7 +560,7 @@ function updateAdaptiveDifficulty() {
     }
 
     if (playerMetrics.tierLabel !== playerMetrics.previousTierLabel && playerMetrics.tierLabel !== 'ESTÁNDAR') {
-        createPopup(`⚡ IA DETECTÓ NIVEL ALTO: ${playerMetrics.tierLabel}`, canvas.width * 0.15, canvas.height * 0.35, '#fbbf24');
+        createPopup(`⚡ IA: ${playerMetrics.tierLabel}`, canvas.width * 0.18, canvas.height * 0.35, '#fbbf24');
     }
     playerMetrics.previousTierLabel = playerMetrics.tierLabel;
 }
@@ -573,10 +571,10 @@ function syncSheetsStatusUI() {
     const url = getSheetsWebAppUrl();
     if (url && url.startsWith('http')) {
         sheetsStatusPill.textContent = 'CONECTADO';
-        sheetsStatusPill.className = 'px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500 text-emerald-300 text-[9px]';
+        sheetsStatusPill.className = 'px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500 text-emerald-300 text-[8px] sm:text-[9px]';
     } else {
         sheetsStatusPill.textContent = 'SHEETS: LOCAL';
-        sheetsStatusPill.className = 'px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-gray-400 text-[9px]';
+        sheetsStatusPill.className = 'px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-gray-400 text-[8px] sm:text-[9px]';
     }
 }
 syncSheetsStatusUI();
@@ -713,20 +711,24 @@ function buildStartGuide() {
 }
 buildStartGuide();
 
+// Renderiza los corazones con tamaño fijo blindado para que nunca colapsen en celular
 function renderLivesHUD() {
     livesContainerEl.innerHTML = '';
     for (let i = 0; i < Math.max(0, lives); i++) {
         const hCanvas = document.createElement('canvas');
         hCanvas.width = 24;
         hCanvas.height = 20;
-        hCanvas.className = 'w-4 h-3.5 sm:w-5 sm:h-4';
+        hCanvas.style.width = '16px';
+        hCanvas.style.height = '14px';
+        hCanvas.style.flexShrink = '0';
+        hCanvas.style.display = 'block';
         const hCtx = hCanvas.getContext('2d');
         drawPixelMatrix(hCtx, SPRITES.heart, 0, 0, 2);
         livesContainerEl.appendChild(hCanvas);
     }
 }
 
-// --- Canvas y Jugador ---
+// --- Canvas y Jugador (Escalado proporcional para móvil y escritorio) ---
 let player = {
     width: 104,
     height: 52,
@@ -737,17 +739,30 @@ let player = {
     catchBounce: 0
 };
 
+function getResponsiveScale() {
+    if (!canvas || !canvas.width) return 1;
+    // Escala suavemente entre 0.72 (en pantallas de ~320px) y 1.0 (en >= 520px)
+    return Math.min(1, Math.max(0.72, canvas.width / 520));
+}
+
 function resizeCanvas() {
     if (!canvas || !canvas.parentElement) return;
     const rect = canvas.parentElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+
+    const prevWidth = canvas.width || rect.width;
+    canvas.width = Math.round(rect.width);
+    canvas.height = Math.round(rect.height);
+
+    const scale = getResponsiveScale();
     if (player) {
-        player.y = canvas.height - 68;
-        if (player.x > canvas.width - player.width) {
-            player.x = Math.max(0, canvas.width - player.width);
-        }
+        const relativeX = prevWidth > 0 ? player.x / prevWidth : 0.5;
+        player.width = Math.round(104 * scale);
+        player.height = Math.round(52 * scale);
+        player.speed = 9.8 * (0.85 + scale * 0.15);
+        // Margen inferior seguro para que la charola y sus patitas nunca queden cortadas
+        player.y = canvas.height - player.height - Math.round(14 * scale);
+        player.x = Math.max(0, Math.min(canvas.width - player.width, relativeX * canvas.width));
     }
 }
 window.addEventListener('resize', resizeCanvas);
@@ -848,15 +863,20 @@ function spawnItem() {
         }
     }
 
-    const size = 44;
-    let x = Math.random() * (canvas.width - size - 32) + 16;
+    const scale = getResponsiveScale();
+    const size = Math.round(44 * scale);
+    const wobbleAmp = (chosen.hazard && playerMetrics.skillRating >= 1.25 ? 4.2 : 2.0) * scale;
+    // Margen seguro lateral que incluye la oscilación horizontal para que nunca se corte en bordes
+    const safePadding = Math.ceil(wobbleAmp + 8);
+    const maxSpawnX = Math.max(safePadding, canvas.width - size - safePadding);
+    let x = Math.random() * (maxSpawnX - safePadding) + safePadding;
 
     if (chosen.hazard) {
         consecutiveHazards++;
         playerMetrics.hazardsSpawned++;
         let attempts = 0;
-        while (Math.abs(x - lastHazardX) < player.width * 1.15 && attempts < 6) {
-            x = Math.random() * (canvas.width - size - 32) + 16;
+        while (Math.abs(x - lastHazardX) < player.width * 1.1 && attempts < 6) {
+            x = Math.random() * (maxSpawnX - safePadding) + safePadding;
             attempts++;
         }
         lastHazardX = x;
@@ -865,58 +885,63 @@ function spawnItem() {
         playerMetrics.goodSpawned++;
     }
 
-    const baseSpeed = (2.5 + Math.random() * 1.3) + (level * 0.34);
-    const adaptiveSpeed = baseSpeed * (0.92 + (playerMetrics.skillRating - 1.0) * 0.45);
+    const baseSpeed = (2.4 + Math.random() * 1.2) + (level * 0.32);
+    const adaptiveSpeed = baseSpeed * (0.92 + (playerMetrics.skillRating - 1.0) * 0.45) * (0.88 + scale * 0.12);
 
     items.push({
         ...chosen,
         x: x,
-        y: -52,
+        y: -size,
         size: size,
         speed: adaptiveSpeed,
         wobblePhase: Math.random() * Math.PI * 2,
-        wobbleAmp: chosen.hazard && playerMetrics.skillRating >= 1.25 ? 4.5 : 2.2
+        wobbleAmp: wobbleAmp
     });
 }
 
 function createPopup(text, x, y, color = '#facc15') {
     const popup = document.createElement('div');
-    popup.className = 'absolute pixel-font text-[10px] sm:text-xs font-bold pointer-events-none transition-all duration-700 ease-out';
-    popup.style.left = `${Math.max(5, Math.min(78, (x / canvas.width) * 100))}%`;
-    popup.style.top = `${Math.max(10, Math.min(85, (y / canvas.height) * 100))}%`;
+    popup.className = 'absolute pixel-font text-[9px] sm:text-xs font-bold pointer-events-none transition-all duration-700 ease-out whitespace-nowrap';
+    popup.style.left = `${Math.max(4, Math.min(68, (x / canvas.width) * 100))}%`;
+    popup.style.top = `${Math.max(8, Math.min(82, (y / canvas.height) * 100))}%`;
     popup.style.color = color;
     popup.style.textShadow = '2px 2px 0px #000';
     popup.textContent = text;
     popupContainer.appendChild(popup);
     
     requestAnimationFrame(() => {
-        popup.style.transform = 'translateY(-35px)';
+        popup.style.transform = 'translateY(-30px)';
         popup.style.opacity = '0';
     });
     setTimeout(() => popup.remove(), 700);
 }
 
-// --- Dibujar Charola Negra S.N.A.X. ---
+// --- Dibujar Charola Negra S.N.A.X. (Escalado proporcionalmente) ---
 function drawTakeoutTray(x, y, w, h) {
     ctx.save();
-    const bounceOffset = player.catchBounce > 0 ? Math.sin(player.catchBounce * 0.5) * 4 : 0;
+    const scale = w / 104;
+    const bounceOffset = player.catchBounce > 0 ? Math.sin(player.catchBounce * 0.5) * 4 * scale : 0;
     ctx.translate(x + w / 2, y + h / 2 + bounceOffset);
     ctx.rotate(player.tilt);
 
     const hw = w / 2;
     const hh = h / 2;
 
+    const topOffset = Math.round(14 * scale);
+    const topHeight = Math.round(16 * scale);
+    const sidePad = Math.round(6 * scale);
+
     ctx.fillStyle = '#18181b';
-    ctx.fillRect(-hw + 6, -hh - 14, w - 12, 16);
+    ctx.fillRect(-hw + sidePad, -hh - topOffset, w - sidePad * 2, topHeight);
     ctx.strokeStyle = '#3f3f46';
     ctx.lineWidth = 2;
-    ctx.strokeRect(-hw + 6, -hh - 14, w - 12, 16);
+    ctx.strokeRect(-hw + sidePad, -hh - topOffset, w - sidePad * 2, topHeight);
 
-    const checkSize = 6;
-    const innerX = -hw + 8;
-    const innerY = -hh - 6;
-    const innerW = w - 16;
-    const innerH = 14;
+    const checkSize = Math.max(4, Math.round(6 * scale));
+    const innerX = -hw + Math.round(8 * scale);
+    const innerY = -hh - Math.round(6 * scale);
+    const innerW = w - Math.round(16 * scale);
+    const innerH = Math.round(14 * scale);
     for (let py = 0; py < innerH; py += checkSize) {
         for (let px = 0; px < innerW; px += checkSize) {
             const isRed = ((px / checkSize) + (py / checkSize)) % 2 === 0;
@@ -930,24 +955,30 @@ function drawTakeoutTray(x, y, w, h) {
         }
     }
 
+    const bodyTop = -hh + Math.round(4 * scale);
+    const bodyH = h - Math.round(4 * scale);
+
     ctx.fillStyle = '#09090b';
-    ctx.fillRect(-hw, -hh + 4, w, h - 4);
+    ctx.fillRect(-hw, bodyTop, w, bodyH);
 
     ctx.fillStyle = '#27272a';
-    ctx.fillRect(-hw - 3, -hh + 2, w + 6, 7);
-    ctx.fillRect(-hw + 16, hh - 2, 16, 6);
-    ctx.fillRect(hw - 32, hh - 2, 16, 6);
+    ctx.fillRect(-hw - 2, -hh + Math.round(2 * scale), w + 4, Math.round(7 * scale));
+    ctx.fillRect(-hw + Math.round(16 * scale), hh - 2, Math.round(16 * scale), Math.round(6 * scale));
+    ctx.fillRect(hw - Math.round(32 * scale), hh - 2, Math.round(16 * scale), Math.round(6 * scale));
 
     ctx.strokeStyle = '#52525b';
     ctx.lineWidth = 2;
-    ctx.strokeRect(-hw, -hh + 4, w, h - 4);
+    ctx.strokeRect(-hw, bodyTop, w, bodyH);
 
+    const badgeW = Math.round(56 * scale);
+    const badgeH = Math.round(18 * scale);
+    const badgeY = -hh + Math.round(15 * scale);
     ctx.fillStyle = '#dc2626';
-    ctx.fillRect(-28, -hh + 15, 56, 18);
+    ctx.fillRect(-badgeW / 2, badgeY, badgeW, badgeH);
     ctx.fillStyle = '#facc15';
-    ctx.font = 'bold 9px "Press Start 2P"';
+    ctx.font = `bold ${Math.max(7, Math.round(9 * scale))}px "Press Start 2P"`;
     ctx.textAlign = 'center';
-    ctx.fillText('S.N.A.X.', 0, -hh + 28);
+    ctx.fillText('S.N.A.X.', 0, badgeY + Math.round(13 * scale));
 
     ctx.restore();
 }
@@ -987,16 +1018,20 @@ function updateGame() {
         spawnTimer = 0;
     }
 
+    const scale = getResponsiveScale();
     for (let i = items.length - 1; i >= 0; i--) {
         const it = items[i];
         it.y += it.speed;
         it.wobblePhase += 0.075;
 
-        const hitMargin = it.hazard ? 11 : 7;
+        const currentWobbleX = Math.sin(it.wobblePhase) * (it.wobbleAmp || 2.0);
+        const itemRenderX = Math.max(2, Math.min(canvas.width - it.size - 2, it.x + currentWobbleX));
+
+        const hitMargin = Math.round((it.hazard ? 10 : 6) * scale);
         if (
-            it.x + it.size - hitMargin > player.x &&
-            it.x + hitMargin < player.x + player.width &&
-            it.y + it.size - hitMargin > player.y - 6 &&
+            itemRenderX + it.size - hitMargin > player.x &&
+            itemRenderX + hitMargin < player.x + player.width &&
+            it.y + it.size - hitMargin > player.y - Math.round(6 * scale) &&
             it.y + hitMargin < player.y + player.height
         ) {
             player.catchBounce = 10;
@@ -1009,8 +1044,8 @@ function updateGame() {
                 updateAdaptiveDifficulty();
 
                 playSound('hurt');
-                spawnParticles(it.x + it.size / 2, it.y + it.size / 2, ['#ef4444', '#facc15', '#38bdf8'], 14);
-                createPopup('-1 VIDA', it.x, it.y - 10, '#ef4444');
+                spawnParticles(itemRenderX + it.size / 2, it.y + it.size / 2, ['#ef4444', '#facc15', '#38bdf8'], 14);
+                createPopup('-1 VIDA', itemRenderX, it.y - 10, '#ef4444');
                 if (lives <= 0) {
                     updateHUD();
                     triggerGameOver();
@@ -1033,14 +1068,14 @@ function updateGame() {
                     comboBadgeEl.textContent = `COMBO x2`;
                     comboBadgeEl.classList.remove('hidden');
                     playSound('combo');
-                    createPopup(`+${earned} x2!`, it.x, it.y - 10, '#facc15');
+                    createPopup(`+${earned} x2!`, itemRenderX, it.y - 10, '#facc15');
                 } else if (it.pts >= 10) {
-                    createPopup(`+${earned}`, it.x, it.y - 10, '#34d399');
+                    createPopup(`+${earned}`, itemRenderX, it.y - 10, '#34d399');
                 } else {
-                    createPopup(`+${earned}`, it.x, it.y - 10, '#fde047');
+                    createPopup(`+${earned}`, itemRenderX, it.y - 10, '#fde047');
                 }
 
-                spawnParticles(it.x + it.size / 2, it.y + it.size / 2, ['#f97316', '#facc15', '#ffffff'], 10);
+                spawnParticles(itemRenderX + it.size / 2, it.y + it.size / 2, ['#f97316', '#facc15', '#ffffff'], 10);
                 updateAdaptiveDifficulty();
                 checkMilestoneRewards();
 
@@ -1057,7 +1092,7 @@ function updateGame() {
             continue;
         }
 
-        if (it.y > canvas.height + 40) {
+        if (it.y > canvas.height + it.size) {
             if (it.hazard) {
                 playerMetrics.hazardsDodged++;
                 updateAdaptiveDifficulty();
@@ -1099,9 +1134,10 @@ function renderGame() {
     }
 
     for (const it of items) {
-        const wobbleX = Math.sin(it.wobblePhase) * (it.wobbleAmp || 2.5);
+        const wobbleX = Math.sin(it.wobblePhase) * (it.wobbleAmp || 2.0);
+        const clampedX = Math.max(2, Math.min(canvas.width - it.size - 2, it.x + wobbleX));
         const pixelScale = it.size / 16;
-        drawPixelMatrix(ctx, SPRITES[it.type], it.x + wobbleX, it.y, pixelScale);
+        drawPixelMatrix(ctx, SPRITES[it.type], clampedX, it.y, pixelScale);
     }
 
     for (const p of particles) {
@@ -1171,7 +1207,6 @@ function startGame() {
     rewardToast.classList.add('hidden');
     comboBadgeEl.classList.add('hidden');
 
-    // Muestra la pantalla de juego y oculta la de login
     showGameScreen();
 
     rewardsModal.classList.add('hidden');
@@ -1186,7 +1221,6 @@ function startGame() {
     gameOverScreen.classList.remove('flex');
     pauseBtn.classList.remove('hidden');
 
-    // Ajusta dimensiones del canvas ahora que la zona de juego es visible
     resizeCanvas();
     player.x = canvas.width / 2 - player.width / 2;
     updateHUD();
@@ -1303,7 +1337,6 @@ function triggerGameOver() {
         noCouponHint.classList.remove('hidden');
     }
 
-    // Envía los datos de la partida para actualizar la fila única del jugador en Sheets
     sendToGoogleSheets({
         jugador: currentPlayerName,
         puntuacion: score,
@@ -1389,7 +1422,6 @@ if (saveSheetsBtn && sheetsUrlInput) {
     });
 }
 
-// Permitir iniciar presionando Enter en el campo de nombre
 playerNameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         startGame();
