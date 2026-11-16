@@ -8,85 +8,24 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for retro pixel aesthetic -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'VT323', monospace;
-            background-color: #0b0b10;
-            color: #f3f4f6;
-            overflow-x: hidden;
-            touch-action: none;
-        }
-        .pixel-font {
-            font-family: 'Press Start 2P', cursive;
-        }
-        /* CRT Scanline effect overlay */
-        .crt::before {
-            content: " ";
-            display: block;
-            position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 20;
-            background-size: 100% 4px, 6px 100%;
-            pointer-events: none;
-        }
-        /* Neon arcade glow effects */
-        .arcade-box {
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), inset 0 0 15px rgba(245, 158, 11, 0.3);
-            border: 4px solid #ef4444;
-        }
-        .btn-arcade {
-            font-family: 'Press Start 2P', cursive;
-            transition: transform 0.1s ease, background-color 0.1s ease;
-            box-shadow: 0 4px 0 #991b1b;
-        }
-        .btn-arcade:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #991b1b;
-        }
-        .btn-arcade-blue {
-            box-shadow: 0 4px 0 #1e3a8a;
-        }
-        .btn-arcade-blue:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #1e3a8a;
-        }
-        .btn-arcade-green {
-            box-shadow: 0 4px 0 #065f46;
-        }
-        .btn-arcade-green:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #065f46;
-        }
-        .btn-arcade-amber {
-            box-shadow: 0 4px 0 #92400e;
-        }
-        .btn-arcade-amber:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #92400e;
-        }
-        .ticket-border {
-            background-image: radial-gradient(circle at 0 50%, transparent 8px, #111827 9px), radial-gradient(circle at 100% 50%, transparent 8px, #111827 9px);
-        }
-        canvas {
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
-        }
-    </style>
+    <!-- Custom Arcade Styles -->
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 select-none">
 
     <!-- Main Game Container -->
     <div id="game-container" class="relative w-full max-w-2xl bg-gray-950 arcade-box rounded-lg overflow-hidden flex flex-col crt shadow-2xl">
         
-        <!-- Top HUD Header -->
-        <header class="bg-black/95 border-b-2 border-red-600 px-3 sm:px-4 py-2.5 flex justify-between items-center z-30">
+        <!-- Top HUD Header (Oculto mientras está en la pantalla de Login/Inicio) -->
+        <header id="game-hud" class="hidden bg-black/95 border-b-2 border-red-600 px-3 sm:px-4 py-2.5 flex justify-between items-center z-30">
             <div class="flex items-center space-x-2">
                 <span class="pixel-font text-xs sm:text-sm text-yellow-400">S.N.A.X.</span>
+                <span id="hud-player-tag" class="hidden sm:inline-block pixel-font text-[9px] bg-zinc-800 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded truncate max-w-[110px]">PLAYER</span>
                 <span id="combo-badge" class="hidden pixel-font text-[10px] bg-amber-500 text-black px-1.5 py-0.5 rounded animate-bounce">x2</span>
+                <span id="ai-skill-badge" class="hidden pixel-font text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded border border-yellow-300">IA: PRO</span>
             </div>
             
-            <div class="flex items-center space-x-3 sm:space-x-5 pixel-font">
+            <div class="flex items-center space-x-2.5 sm:space-x-4 pixel-font">
                 <div>
                     <span class="text-[9px] sm:text-[10px] text-red-500 block">SCORE</span>
                     <span id="score-val" class="text-xs sm:text-base text-yellow-400">000000</span>
@@ -106,15 +45,66 @@
             </div>
         </header>
 
-        <!-- Canvas Area -->
-        <div class="relative w-full aspect-[3/4] sm:aspect-[4/3] bg-gradient-to-b from-slate-950 via-zinc-900 to-neutral-950 overflow-hidden flex items-center justify-center">
+        <!-- Dedicated Start / Login Screen (Visible al inicio, se oculta al pulsar JUGAR) -->
+        <section id="start-screen" class="w-full min-h-[480px] sm:min-h-[520px] bg-gradient-to-b from-slate-950 via-zinc-950 to-black flex flex-col items-center justify-center p-4 sm:p-6 z-30 text-center">
+            <div class="mb-1 text-yellow-400 pixel-font text-xs sm:text-base animate-pulse">★ S.N.A.X. ARCADE ★</div>
+            <h1 class="text-lg sm:text-2xl pixel-font text-red-500 mb-2 tracking-wider drop-shadow-[0_4px_4px_rgba(239,68,68,0.8)]">WINGS & BONELESS RUSH</h1>
+            
+            <div class="flex items-center justify-center gap-3 text-[10px] sm:text-xs pixel-font text-green-400 mb-3">
+                <span>HIGH SCORE: <span id="start-highscore" class="text-yellow-400">0</span></span>
+                <span id="sheets-status-pill" class="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-gray-400 text-[9px]">SHEETS: LOCAL</span>
+            </div>
+
+            <!-- Player Login Box (Se oculta una vez registrado el usuario) -->
+            <div id="login-box" class="bg-gray-900 border-2 border-red-500/80 p-3 rounded-lg mb-3 w-full max-w-md text-left shadow-lg">
+                <label for="player-name-input" class="block pixel-font text-[9px] sm:text-[10px] text-yellow-400 mb-1.5">
+                    👤 NOMBRE DEL JUGADOR (ÚNICO):
+                </label>
+                <div class="flex gap-2">
+                    <input
+                        type="text"
+                        id="player-name-input"
+                        maxlength="24"
+                        placeholder="Ej. Jony / Tu Apodo..."
+                        class="flex-1 bg-black border-2 border-amber-500/60 focus:border-yellow-400 rounded px-2.5 py-2 text-white text-sm sm:text-base outline-none"
+                    />
+                </div>
+                <p id="login-error-msg" class="hidden text-red-400 text-xs mt-1.5 font-bold">⚠ Escribe tu nombre o apodo para iniciar y registrar tu partida.</p>
+            </div>
+
+            <!-- Locked Player Badge (Aparece en lugar del login cuando ya tiene usuario) -->
+            <div id="locked-player-banner" class="hidden bg-zinc-900/95 border-2 border-amber-500/70 px-3.5 py-2.5 rounded-lg mb-3 w-full max-w-md flex items-center justify-between">
+                <span class="pixel-font text-[9px] sm:text-[10px] text-gray-300">🔒 JUGADOR:</span>
+                <span id="locked-player-display" class="pixel-font text-[10px] sm:text-xs text-yellow-400 truncate max-w-[200px]">JUGADOR</span>
+            </div>
+
+            <!-- Visual Pixel Art Legend -->
+            <div class="bg-gray-900/95 border-2 border-amber-500/60 p-2.5 sm:p-3 rounded-lg mb-4 w-full max-w-md text-left">
+                <p class="text-yellow-400 pixel-font text-[9px] sm:text-[10px] mb-2 text-center border-b border-gray-800 pb-1">GUÍA DEL MENÚ PIXEL ART</p>
+                <div id="item-guide-grid" class="grid grid-cols-2 gap-1.5 text-xs text-gray-200">
+                    <!-- Dynamically populated with mini pixel canvases -->
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <button id="start-btn" class="btn-arcade bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded text-xs sm:text-sm uppercase tracking-widest border-2 border-yellow-400">
+                    ▶ JUGAR
+                </button>
+                <button id="open-rewards-btn" class="btn-arcade btn-arcade-amber bg-amber-500 hover:bg-amber-400 text-black px-4 py-3 rounded text-xs sm:text-sm uppercase tracking-wider border-2 border-white">
+                    🎁 PREMIOS
+                </button>
+            </div>
+        </section>
+
+        <!-- Game Play Zone (Oculta durante el login, se muestra al pulsar JUGAR) -->
+        <div id="game-play-zone" class="hidden relative w-full aspect-[3/4] sm:aspect-[4/3] bg-gradient-to-b from-slate-950 via-zinc-900 to-neutral-950 overflow-hidden flex items-center justify-center">
             
             <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
 
             <!-- Floating Combo / Score Popups Container -->
             <div id="popup-container" class="absolute inset-0 pointer-events-none z-20 overflow-hidden"></div>
 
-            <!-- Milestone Reward Unlock Toast Banner (Non-intrusive top banner during play) -->
+            <!-- Milestone Reward Unlock Toast Banner -->
             <div id="reward-toast" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-sm bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black border-2 border-white rounded-lg px-3 py-2 shadow-[0_0_20px_rgba(250,204,21,0.9)] pointer-events-none transition-all duration-300">
                 <div class="flex items-center justify-between gap-2">
                     <div class="text-left">
@@ -125,57 +115,11 @@
                 </div>
             </div>
 
-            <!-- Start Screen Overlay -->
-            <div id="start-screen" class="absolute inset-0 bg-black/92 flex flex-col items-center justify-center p-3 sm:p-5 z-40 text-center overflow-y-auto">
-                <div class="mb-1 text-yellow-400 pixel-font text-xs sm:text-lg animate-pulse">★ S.N.A.X. ARCADE ★</div>
-                <h1 class="text-lg sm:text-3xl pixel-font text-red-500 mb-2 tracking-wider drop-shadow-[0_4px_4px_rgba(239,68,68,0.8)]">WINGS & BONELESS RUSH</h1>
-                
-                <div class="text-[11px] sm:text-sm pixel-font text-green-400 mb-2.5">
-                    HIGH SCORE: <span id="start-highscore" class="text-yellow-400">0</span>
-                </div>
-
-                <!-- Visual Pixel Art Legend -->
-                <div class="bg-gray-900/95 border-2 border-amber-500/60 p-2.5 sm:p-3.5 rounded-lg mb-3 w-full max-w-md text-left">
-                    <p class="text-yellow-400 pixel-font text-[9px] sm:text-xs mb-2 text-center border-b border-gray-800 pb-1">GUÍA DEL MENÚ PIXEL ART</p>
-                    <div id="item-guide-grid" class="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-200">
-                        <!-- Dynamically populated with mini pixel canvases -->
-                    </div>
-                    <p class="text-[10px] sm:text-xs text-amber-300 mt-2 pt-1.5 border-t border-gray-800 text-center">
-                        ¡Alcanza metas de puntos y gana premios reales!
-                    </p>
-                </div>
-
-                <div class="flex flex-wrap items-center justify-center gap-3">
-                    <button id="start-btn" class="btn-arcade bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded text-xs sm:text-base uppercase tracking-widest border-2 border-yellow-400">
-                        ▶ JUGAR
-                    </button>
-                    <button id="open-rewards-btn" class="btn-arcade btn-arcade-amber bg-amber-500 hover:bg-amber-400 text-black px-4 py-3 rounded text-xs sm:text-base uppercase tracking-wider border-2 border-white">
-                        🎁 PREMIOS
-                    </button>
-                </div>
-            </div>
-
-            <!-- Rewards Catalog Modal (From Start Screen) -->
-            <div id="rewards-modal" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-4 sm:p-6 z-50 text-center overflow-y-auto">
-                <div class="bg-gray-950 border-4 border-yellow-400 p-4 sm:p-5 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(250,204,21,0.4)]">
-                    <h2 class="pixel-font text-sm sm:text-lg text-yellow-400 mb-1">🎁 PREMIOS S.N.A.X.</h2>
-                    <p class="text-gray-300 text-xs sm:text-sm mb-3">Supera estas puntuaciones en una partida y desbloquea tu cupón:</p>
-                    
-                    <div id="rewards-catalog-list" class="space-y-2 text-left mb-4">
-                        <!-- Dynamically populated reward tiers -->
-                    </div>
-
-                    <button id="close-rewards-btn" class="w-full btn-arcade bg-red-600 hover:bg-red-500 text-white py-2.5 rounded text-xs sm:text-sm border-2 border-yellow-400">
-                        VOLVER
-                    </button>
-                </div>
-            </div>
-
             <!-- Pause Menu Overlay -->
             <div id="pause-screen" class="absolute inset-0 bg-black/88 hidden flex-col items-center justify-center p-6 z-40 text-center backdrop-blur-[2px]">
                 <div class="bg-gray-950 border-4 border-yellow-400 p-6 rounded-lg w-full max-w-xs sm:max-w-sm shadow-[0_0_25px_rgba(250,204,21,0.4)] space-y-4">
-                    <h2 class="pixel-font text-xl sm:text-2xl text-yellow-400 tracking-widest mb-2">PAUSA</h2>
-                    <p class="text-gray-400 text-sm sm:text-base mb-4">¡No dejes que se enfríen las alitas!</p>
+                    <h2 class="pixel-font text-xl sm:text-2xl text-yellow-400 tracking-widest mb-1">PAUSA</h2>
+                    <p id="pause-ai-summary" class="text-amber-300 text-xs sm:text-sm mb-3">Nivel IA: Estándar</p>
                     
                     <button id="resume-btn" class="w-full btn-arcade btn-arcade-green bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded text-xs sm:text-sm border-2 border-emerald-300">
                         ▶ CONTINUAR
@@ -198,30 +142,34 @@
             <!-- Game Over Screen Overlay -->
             <div id="gameover-screen" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-3 sm:p-5 z-40 text-center overflow-y-auto">
                 <div class="text-xl sm:text-3xl pixel-font text-red-600 mb-1 animate-pulse">GAME OVER</div>
-                <p id="final-comment" class="text-amber-400 text-base sm:text-xl mb-2.5">¡Se acabaron las alitas!</p>
+                <p id="final-comment" class="text-amber-400 text-base sm:text-xl mb-2">¡Se acabaron las alitas!</p>
                 
-                <div class="bg-gray-900 border-2 border-red-500 p-3 sm:p-4 rounded-lg mb-3 w-full max-w-sm space-y-1.5">
-                    <div class="flex justify-between items-center text-sm sm:text-base">
+                <div class="bg-gray-900 border-2 border-red-500 p-3 rounded-lg mb-2.5 w-full max-w-sm space-y-1">
+                    <div class="flex justify-between items-center text-xs sm:text-sm">
+                        <span class="text-gray-400">JUGADOR:</span>
+                        <span id="final-player-name" class="text-amber-300 pixel-font text-[10px] sm:text-xs">INVITADO</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs sm:text-sm">
                         <span class="text-gray-400">PUNTUACIÓN:</span>
                         <span id="final-score" class="text-yellow-400 pixel-font text-xs sm:text-sm">0</span>
                     </div>
-                    <div class="flex justify-between items-center text-sm sm:text-base">
+                    <div class="flex justify-between items-center text-xs sm:text-sm">
                         <span class="text-gray-400">RÉCORD:</span>
                         <span id="highscore-val" class="text-green-400 pixel-font text-xs sm:text-sm">0</span>
                     </div>
-                    <div class="flex justify-between items-center text-sm sm:text-base">
-                        <span class="text-gray-400">NIVEL:</span>
-                        <span id="final-level" class="text-sky-400 pixel-font text-xs sm:text-sm">1</span>
+                    <div class="flex justify-between items-center text-xs sm:text-sm">
+                        <span class="text-gray-400">PERFIL IA / PRECISIÓN:</span>
+                        <span id="final-skill-profile" class="text-sky-400 pixel-font text-[10px]">ESTÁNDAR (0%)</span>
                     </div>
                 </div>
 
                 <!-- Unlocked Coupon Ticket Card -->
-                <div id="unlocked-coupon-box" class="hidden w-full max-w-sm mb-3 bg-gradient-to-b from-amber-950/90 to-gray-900 border-2 border-dashed border-yellow-400 rounded-lg p-3 text-center shadow-[0_0_15px_rgba(250,204,21,0.3)]">
+                <div id="unlocked-coupon-box" class="hidden w-full max-w-sm mb-2.5 bg-gradient-to-b from-amber-950/90 to-gray-900 border-2 border-dashed border-yellow-400 rounded-lg p-2.5 text-center shadow-[0_0_15px_rgba(250,204,21,0.3)]">
                     <div class="pixel-font text-[9px] sm:text-[10px] text-yellow-400 mb-1">★ CUPÓN DESBLOQUEADO ★</div>
                     <div id="coupon-title" class="pixel-font text-xs sm:text-sm text-white mb-1">10% DE DESCUENTO</div>
-                    <p id="coupon-desc" class="text-xs text-amber-200 mb-2">En tu próximo pedido de alitas o boneless</p>
+                    <p id="coupon-desc" class="text-xs text-amber-200 mb-1.5">En tu próximo pedido de alitas o boneless</p>
                     
-                    <div class="flex items-center justify-center gap-2 bg-black/80 border border-yellow-500/60 rounded px-2.5 py-1.5 mb-1.5">
+                    <div class="flex items-center justify-center gap-2 bg-black/80 border border-yellow-500/60 rounded px-2.5 py-1 mb-1.5">
                         <span id="coupon-code-text" class="pixel-font text-xs sm:text-sm text-green-400 tracking-wider">SNAX10</span>
                         <button id="copy-coupon-btn" class="bg-yellow-400 hover:bg-yellow-300 text-black pixel-font text-[9px] px-2 py-1 rounded active:scale-95 transition">
                             COPIAR
@@ -232,15 +180,15 @@
                 </div>
 
                 <!-- Next Reward Hint when no reward unlocked yet -->
-                <div id="no-coupon-hint" class="hidden w-full max-w-sm mb-3 bg-gray-900/90 border border-gray-700 rounded-lg p-2.5 text-xs text-gray-300">
+                <div id="no-coupon-hint" class="hidden w-full max-w-sm mb-2.5 bg-gray-900/90 border border-gray-700 rounded-lg p-2 text-xs text-gray-300">
                     🎯 ¡Llega a <span class="text-yellow-400 font-bold">800 PTS</span> para desbloquear tu primer cupón de descuento!
                 </div>
 
-                <div class="flex flex-col sm:flex-row gap-2.5 w-full max-w-sm justify-center">
-                    <button id="restart-btn" class="flex-1 btn-arcade btn-arcade-green bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded text-[11px] sm:text-xs uppercase tracking-wider border-2 border-yellow-400">
+                <div class="flex flex-col sm:flex-row gap-2 w-full max-w-sm justify-center">
+                    <button id="restart-btn" class="flex-1 btn-arcade btn-arcade-green bg-green-600 hover:bg-green-500 text-white px-4 py-2.5 rounded text-[11px] sm:text-xs uppercase tracking-wider border-2 border-yellow-400">
                         VOLVER A JUGAR
                     </button>
-                    <button id="gameover-menu-btn" class="flex-1 btn-arcade bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-3 rounded text-[11px] sm:text-xs uppercase tracking-wider border-2 border-gray-400">
+                    <button id="gameover-menu-btn" class="flex-1 btn-arcade bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2.5 rounded text-[11px] sm:text-xs uppercase tracking-wider border-2 border-gray-400">
                         MENÚ PRINCIPAL
                     </button>
                 </div>
@@ -248,8 +196,50 @@
 
         </div>
 
-        <!-- Mobile Quick Touch Bar & Footer -->
-        <div class="bg-zinc-900 border-t border-gray-800 px-3 py-2 flex sm:hidden justify-between gap-3">
+        <!-- Google Sheets Webhook Config Modal -->
+        <div id="sheets-modal" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-4 z-50 text-center overflow-y-auto">
+            <div class="bg-gray-950 border-4 border-emerald-400 p-4 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(16,185,129,0.4)] text-left">
+                <h2 class="pixel-font text-xs sm:text-sm text-emerald-400 mb-1 text-center">📊 CONEXIÓN GOOGLE SHEETS</h2>
+                <p class="text-gray-300 text-xs mb-2.5">Pega la URL de tu aplicación web implementada desde <strong>code.gs</strong> en Google Apps Script:</p>
+                
+                <input
+                    type="url"
+                    id="sheets-url-input"
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    class="w-full bg-black border-2 border-emerald-500/70 focus:border-emerald-300 rounded px-2.5 py-2 text-white text-xs sm:text-sm outline-none mb-2"
+                />
+
+                <div id="sheets-test-feedback" class="text-xs text-amber-300 mb-3 min-h-[18px]"></div>
+
+                <div class="flex gap-2">
+                    <button id="save-sheets-btn" type="button" class="flex-1 btn-arcade btn-arcade-green bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-[10px] sm:text-xs border-2 border-emerald-300">
+                        GUARDAR URL
+                    </button>
+                    <button id="close-sheets-btn" type="button" class="btn-arcade bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-2 rounded text-[10px] sm:text-xs border-2 border-gray-400">
+                        CERRAR
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rewards Catalog Modal (From Start Screen) -->
+        <div id="rewards-modal" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-4 sm:p-6 z-50 text-center overflow-y-auto">
+            <div class="bg-gray-950 border-4 border-yellow-400 p-4 sm:p-5 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(250,204,21,0.4)]">
+                <h2 class="pixel-font text-sm sm:text-lg text-yellow-400 mb-1">🎁 PREMIOS S.N.A.X.</h2>
+                <p class="text-gray-300 text-xs sm:text-sm mb-3">Supera estas puntuaciones en una partida y desbloquea tu cupón:</p>
+                
+                <div id="rewards-catalog-list" class="space-y-2 text-left mb-4">
+                    <!-- Dynamically populated reward tiers -->
+                </div>
+
+                <button id="close-rewards-btn" class="w-full btn-arcade bg-red-600 hover:bg-red-500 text-white py-2.5 rounded text-xs sm:text-sm border-2 border-yellow-400">
+                    VOLVER
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Quick Touch Bar (Oculta mientras está en el Login) -->
+        <div id="mobile-touch-bar" class="hidden bg-zinc-900 border-t border-gray-800 px-3 py-2 flex sm:hidden justify-between gap-3">
             <button id="touch-left" class="flex-1 bg-zinc-800 active:bg-red-600 border border-zinc-600 py-2.5 rounded pixel-font text-sm text-yellow-400">◀ IZQ</button>
             <button id="touch-right" class="flex-1 bg-zinc-800 active:bg-red-600 border border-zinc-600 py-2.5 rounded pixel-font text-sm text-yellow-400">DER ▶</button>
         </div>
@@ -262,1158 +252,7 @@
 
     </div>
 
-    <!-- Game Logic, Pixel Art Matrices & Sound Engine -->
-    <script>
-        // --- Web Audio API Retro Sound & Chiptune BGM Synthesizer ---
-        let soundEnabled = true;
-        let audioCtx = null;
-        let bgmInterval = null;
-        let bgmStep = 0;
-
-        // Upbeat 8-bit arcade melody & bassline sequence (16 steps)
-        const BGM_LEAD = [
-            523.25, 0, 659.25, 783.99,
-            659.25, 0, 523.25, 587.33,
-            659.25, 783.99, 880.00, 783.99,
-            659.25, 587.33, 523.25, 0
-        ];
-        const BGM_BASS = [
-            130.81, 130.81, 196.00, 196.00,
-            174.61, 174.61, 130.81, 130.81,
-            146.83, 146.83, 196.00, 196.00,
-            130.81, 196.00, 130.81, 0
-        ];
-
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
-
-        function startBGM() {
-            stopBGM();
-            if (!soundEnabled) return;
-            initAudio();
-            bgmStep = 0;
-            bgmInterval = setInterval(() => {
-                if (!soundEnabled || gameState !== 'PLAYING' || !audioCtx) return;
-                const now = audioCtx.currentTime;
-                const leadFreq = BGM_LEAD[bgmStep % BGM_LEAD.length];
-                const bassFreq = BGM_BASS[bgmStep % BGM_BASS.length];
-
-                if (leadFreq > 0) {
-                    const oscLead = audioCtx.createOscillator();
-                    const gainLead = audioCtx.createGain();
-                    oscLead.type = 'square';
-                    oscLead.frequency.setValueAtTime(leadFreq, now);
-                    gainLead.gain.setValueAtTime(0.035, now);
-                    gainLead.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-                    oscLead.connect(gainLead);
-                    gainLead.connect(audioCtx.destination);
-                    oscLead.start(now);
-                    oscLead.stop(now + 0.14);
-                }
-
-                if (bassFreq > 0) {
-                    const oscBass = audioCtx.createOscillator();
-                    const gainBass = audioCtx.createGain();
-                    oscBass.type = 'triangle';
-                    oscBass.frequency.setValueAtTime(bassFreq, now);
-                    gainBass.gain.setValueAtTime(0.055, now);
-                    gainBass.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-                    oscBass.connect(gainBass);
-                    gainBass.connect(audioCtx.destination);
-                    oscBass.start(now);
-                    oscBass.stop(now + 0.15);
-                }
-
-                bgmStep++;
-            }, 175);
-        }
-
-        function stopBGM() {
-            if (bgmInterval) {
-                clearInterval(bgmInterval);
-                bgmInterval = null;
-            }
-        }
-
-        function playSound(type) {
-            if (!soundEnabled) return;
-            initAudio();
-            if (!audioCtx) return;
-
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            const now = audioCtx.currentTime;
-
-            if (type === 'wing_buffalo') {
-                // Alita ATOMIC: sharp fiery upward synth blip
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(320, now);
-                osc.frequency.exponentialRampToValueAtTime(640, now + 0.09);
-                gain.gain.setValueAtTime(0.13, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
-                osc.start(now);
-                osc.stop(now + 0.09);
-            } else if (type === 'veggie_sticks') {
-                // Zanahoria/Pepino: crisp fresh high woodblock-like ping
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(620, now);
-                osc.frequency.setValueAtTime(840, now + 0.04);
-                gain.gain.setValueAtTime(0.16, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
-                osc.start(now);
-                osc.stop(now + 0.09);
-            } else if (type === 'boneless_bbq') {
-                // Boneless BBQ: punchy double-note arcade chime
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(440, now);
-                osc.frequency.setValueAtTime(659.25, now + 0.06);
-                gain.gain.setValueAtTime(0.13, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
-                osc.start(now);
-                osc.stop(now + 0.14);
-            } else if (type === 'fries') {
-                // Papas francesas: golden coin triple arpeggio
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(587.33, now);
-                osc.frequency.setValueAtTime(783.99, now + 0.05);
-                osc.frequency.setValueAtTime(1046.50, now + 0.10);
-                gain.gain.setValueAtTime(0.18, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
-                osc.start(now);
-                osc.stop(now + 0.18);
-            } else if (type === 'ranch_cup') {
-                // Vasito Ranch: bubbly creamy sweep
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.exponentialRampToValueAtTime(920, now + 0.15);
-                gain.gain.setValueAtTime(0.18, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
-                osc.start(now);
-                osc.stop(now + 0.16);
-            } else if (type === 'combo') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(523.25, now);
-                osc.frequency.setValueAtTime(659.25, now + 0.05);
-                osc.frequency.setValueAtTime(783.99, now + 0.10);
-                osc.frequency.setValueAtTime(1046.50, now + 0.15);
-                gain.gain.setValueAtTime(0.14, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.24);
-                osc.start(now);
-                osc.stop(now + 0.24);
-            } else if (type === 'bonus') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(523.25, now);
-                osc.frequency.setValueAtTime(659.25, now + 0.07);
-                osc.frequency.setValueAtTime(783.99, now + 0.14);
-                osc.frequency.setValueAtTime(1046.50, now + 0.21);
-                gain.gain.setValueAtTime(0.15, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
-                osc.start(now);
-                osc.stop(now + 0.32);
-            } else if (type === 'hurt') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(160, now);
-                osc.frequency.linearRampToValueAtTime(38, now + 0.28);
-                gain.gain.setValueAtTime(0.22, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
-                osc.start(now);
-                osc.stop(now + 0.28);
-            } else if (type === 'pause') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(330, now);
-                osc.frequency.setValueAtTime(220, now + 0.08);
-                gain.gain.setValueAtTime(0.12, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
-                osc.start(now);
-                osc.stop(now + 0.16);
-            } else if (type === 'gameover') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(240, now);
-                osc.frequency.setValueAtTime(190, now + 0.18);
-                osc.frequency.setValueAtTime(140, now + 0.36);
-                osc.frequency.linearRampToValueAtTime(65, now + 0.65);
-                gain.gain.setValueAtTime(0.24, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
-                osc.start(now);
-                osc.stop(now + 0.65);
-            } else if (type === 'levelup') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(440, now);
-                osc.frequency.setValueAtTime(554.37, now + 0.09);
-                osc.frequency.setValueAtTime(659.25, now + 0.18);
-                osc.frequency.setValueAtTime(880, now + 0.27);
-                gain.gain.setValueAtTime(0.15, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.42);
-                osc.start(now);
-                osc.stop(now + 0.42);
-            } else if (type === 'reward') {
-                // Exciting 8-bit victory fanfare for unlocking a real promo coupon
-                osc.type = 'square';
-                const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50];
-                const times = [0, 0.08, 0.16, 0.24, 0.34, 0.42];
-                notes.forEach((freq, idx) => {
-                    osc.frequency.setValueAtTime(freq, now + times[idx]);
-                });
-                gain.gain.setValueAtTime(0.18, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.62);
-                osc.start(now);
-                osc.stop(now + 0.62);
-            }
-        }
-
-        // --- 16x16 High-Detail Pixel Art Sprite Matrices ---
-        const PALETTE = {
-            '.': null,
-            'K': '#09090b', // Outline Black
-            'W': '#ffffff', // Pure White
-            'B': '#d97706', // Bone / Breaded Base
-            'L': '#fbbf24', // Golden Highlight
-            'O': '#ea580c', // Buffalo Sauce Orange
-            'R': '#dc2626', // Deep Sauce / Chili Red
-            'D': '#7f1d1d', // BBQ Dark Glaze
-            'M': '#9a3412', // BBQ Medium Brown
-            'G': '#22c55e', // Cucumber / Stem Green
-            'V': '#86efac', // Light Cucumber / Stem
-            'C': '#f97316', // Carrot Orange
-            'Y': '#facc15', // French Fry Yellow
-            'I': '#38bdf8', // Ice Blue
-            'A': '#bae6fd', // Ice Highlight
-            'E': '#15803d', // Dark Leaf Green
-            'F': '#f97316', // Fire Spark Orange
-            'U': '#fef08a', // Fire Core Yellow
-            'S': '#cbd5e1', // Ranch Cup Rim Gray
-            'P': '#f8fafc'  // Ranch Cream White
-        };
-
-        const SPRITES = {
-            // 16x16 Alita Buffalo (con hueso expuesto y salsa naranja brillante)
-            wing_buffalo: [
-                "....KKK.........",
-                "...KWWWK........",
-                "...KWBBWK.......",
-                "....KBBWKK......",
-                ".....KOOOOOK....",
-                "....KOOLLOOOK...",
-                "...KOOLLLLOOOK..",
-                "..KOOLLOOOOOOOK.",
-                "..KOOOOOOOOORRK.",
-                "..KOOOOOOORRRRK.",
-                "...KOOOOORRRRK..",
-                "....KOOORRRRK...",
-                ".....KRRRRKK....",
-                "......KKKK......",
-                "................",
-                "................"
-            ],
-            // 16x16 Boneless BBQ (trozo crujiente glaseado en salsa BBQ oscura)
-            boneless_bbq: [
-                ".....KKKKKK.....",
-                "...KKMMMMMMKK...",
-                "..KMMLLMMMMMMK..",
-                ".KMMLLMMMMMMMMK.",
-                ".KMMMMDDDDMMMMK.",
-                "KMMMMDDDDDDMMMMK",
-                "KMMDDDDLLDDDDMMK",
-                "KMMMDDDDDDDDMMMK",
-                ".KMMMDDDDDDMMMK.",
-                ".KMMMMDDDDMMMMK.",
-                "..KMMMMMMMMMMK..",
-                "...KKMMMMMMKK...",
-                ".....KKKKKK.....",
-                "................",
-                "................",
-                "................"
-            ],
-            // 16x16 Vasito de Aderezo Ranch con tapa
-            ranch_cup: [
-                "...KKKKKKKKKK...",
-                "..KWWWWWWWWWWK..",
-                ".KSSSSSSSSSSSSK.",
-                ".KWWWWWWWWWWWWK.",
-                "..KKKKKKKKKKKK..",
-                "..KPPPPPPPPPPK..",
-                "..KPPWWWWPPPPK..",
-                "...KPPPPPPPPK...",
-                "...KPPWWWWPPK...",
-                "...KPPPPPPPPK...",
-                "....KPPPPPPK....",
-                "....KPPPPPPK....",
-                ".....KKKKKK.....",
-                "................",
-                "................",
-                "................"
-            ],
-            // 16x16 Bastones de Zanahoria y Pepino
-            veggie_sticks: [
-                "......KK...KK...",
-                ".....KCCK.KGGK..",
-                "....KCCCKKGGVK..",
-                "...KCCCKKGGVVK..",
-                "..KCCCKKGGVVK...",
-                ".KCCCKKGGVVK....",
-                ".KCCKKGGVVK.....",
-                "..KK.KGGVK......",
-                ".....KGGK.......",
-                "......KK........",
-                "................",
-                "................",
-                "................",
-                "................",
-                "................",
-                "................"
-            ],
-            // 16x16 Papas a la Francesa (bastones amarillos dorados con sal)
-            fries: [
-                "....KK..KK......",
-                "...KYYKKYYK.KK..",
-                "..KKYYKKYYKKYYK.",
-                ".KYYKYYKYYKKYYK.",
-                ".KYYKYYKYYGKYYK.",
-                ".KYYGYYGYYGKYYK.",
-                ".KRRRRRRRRRRRRK.",
-                ".KRRYYYYYYYYRRK.",
-                "..KRYYYYYYYYRK..",
-                "..KRRYYYYYYRRK..",
-                "..KRRRRRRRRRRK..",
-                "...KRRRRRRRRK...",
-                "....KKKKKKKK....",
-                "................",
-                "................",
-                "................"
-            ],
-            // 16x16 Chile Súper Picante (cuerpo curvo afilado de chile rojo brillante, tallo verde y chispas de fuego)
-            chili: [
-                "............KK..",
-                "...........KVVK.",
-                "..........KVVVK.",
-                ".........KEEEEK.",
-                "........KRRRRRK.",
-                "..KK...KRRWWRRK.",
-                ".KFUK.KRRWRRRDK.",
-                "..KK.KRRWRRRDDK.",
-                "....KRRRRRRDDK..",
-                "...KRRRRRRDDK...",
-                "..KRRRRRRDDK....",
-                ".KRRRRRRDDK.....",
-                "KRRRRRRDK.......",
-                "KRRRRDK.........",
-                ".KKKK...........",
-                "................"
-            ],
-            // 16x16 Cubo de Hielo (Obstáculo)
-            ice: [
-                "..KKKKKKKKKKKK..",
-                ".KIIIIIIIIIIIIK.",
-                "KIIAAIIIIIIAAIIK",
-                "KIIAAIIIIIIAAIIK",
-                "KIIIIIIIIIIIIIIK",
-                "KIIIIIIWWIIIIIIK",
-                "KIIIIIWWWWIIIIIK",
-                "KIIIIIIWWIIIIIIK",
-                "KIIIIIIIIIIIIIIK",
-                "KIIAAIIIIIIAAIIK",
-                "KIIAAIIIIIIAAIIK",
-                ".KIIIIIIIIIIIIK.",
-                "..KKKKKKKKKKKK..",
-                "................",
-                "................",
-                "................"
-            ],
-            // 12x10 Corazón Pixel Art para vidas
-            heart: [
-                ".KKK...KKK..",
-                "KRRRK.KRRRK.",
-                "KRWWRKRRRRRK",
-                "KRWRRRRRRRRK",
-                "KRRRRRRRRRRK",
-                ".KRRRRRRRRK.",
-                "..KRRRRRRK..",
-                "...KRRRRK...",
-                "....KRRK....",
-                ".....KK....."
-            ]
-        };
-
-        // Helper to draw a pixel matrix onto any 2D context
-        function drawPixelMatrix(targetCtx, matrix, x, y, pixelSize) {
-            for (let row = 0; row < matrix.length; row++) {
-                const line = matrix[row];
-                for (let col = 0; col < line.length; col++) {
-                    const ch = line[col];
-                    const color = PALETTE[ch];
-                    if (color) {
-                        targetCtx.fillStyle = color;
-                        targetCtx.fillRect(
-                            Math.floor(x + col * pixelSize),
-                            Math.floor(y + row * pixelSize),
-                            Math.ceil(pixelSize),
-                            Math.ceil(pixelSize)
-                        );
-                    }
-                }
-            }
-        }
-
-        // --- Core Game State & DOM References ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreValEl = document.getElementById('score-val');
-        const levelValEl = document.getElementById('level-val');
-        const livesContainerEl = document.getElementById('lives-container');
-        const comboBadgeEl = document.getElementById('combo-badge');
-
-        const startScreen = document.getElementById('start-screen');
-        const pauseScreen = document.getElementById('pause-screen');
-        const gameOverScreen = document.getElementById('gameover-screen');
-
-        const startBtn = document.getElementById('start-btn');
-        const pauseBtn = document.getElementById('pause-btn');
-        const resumeBtn = document.getElementById('resume-btn');
-        const pauseRestartBtn = document.getElementById('pause-restart-btn');
-        const pauseSoundBtn = document.getElementById('pause-sound-btn');
-        const exitMenuBtn = document.getElementById('exit-menu-btn');
-        const restartBtn = document.getElementById('restart-btn');
-        const gameOverMenuBtn = document.getElementById('gameover-menu-btn');
-        const soundToggleBtn = document.getElementById('sound-toggle');
-
-        const startHighscoreEl = document.getElementById('start-highscore');
-        const finalScoreEl = document.getElementById('final-score');
-        const highscoreValEl = document.getElementById('highscore-val');
-        const finalLevelEl = document.getElementById('final-level');
-        const finalCommentEl = document.getElementById('final-comment');
-        const popupContainer = document.getElementById('popup-container');
-
-        const rewardToast = document.getElementById('reward-toast');
-        const rewardToastTitle = document.getElementById('reward-toast-title');
-        const rewardToastCode = document.getElementById('reward-toast-code');
-        const openRewardsBtn = document.getElementById('open-rewards-btn');
-        const closeRewardsBtn = document.getElementById('close-rewards-btn');
-        const rewardsModal = document.getElementById('rewards-modal');
-        const rewardsCatalogList = document.getElementById('rewards-catalog-list');
-        const unlockedCouponBox = document.getElementById('unlocked-coupon-box');
-        const noCouponHint = document.getElementById('no-coupon-hint');
-        const couponTitleEl = document.getElementById('coupon-title');
-        const couponDescEl = document.getElementById('coupon-desc');
-        const couponCodeTextEl = document.getElementById('coupon-code-text');
-        const copyCouponBtn = document.getElementById('copy-coupon-btn');
-        const allUnlockedBadgesEl = document.getElementById('all-unlocked-badges');
-
-        let gameState = 'START'; // START, PLAYING, PAUSED, GAMEOVER
-        let animationFrameId = null;
-        let score = 0;
-        let lives = 3;
-        let level = 1;
-        let comboCount = 0;
-        let comboTimer = 0;
-        let highscore = parseInt(localStorage.getItem('snax_highscore') || '0', 10);
-        startHighscoreEl.textContent = highscore;
-
-        // Milestone Rewards Configuration (Higher thresholds adjusted to 5pt / 10pt economy)
-        const REWARD_TIERS = [
-            {
-                id: 'disc10',
-                points: 800,
-                title: '10% DE DESCUENTO',
-                shortLabel: '10% OFF',
-                code: 'SNAX10',
-                desc: 'En tu próximo pedido de alitas o boneless'
-            },
-            {
-                id: 'freefries',
-                points: 1800,
-                title: 'PAPAS FRANCESAS GRATIS',
-                shortLabel: 'PAPAS GRATIS',
-                code: 'PAPAS8BIT',
-                desc: 'Orden de papas doradas gratis al comprar tu combo'
-            },
-            {
-                id: 'extrapcs',
-                points: 3000,
-                title: '+3 PIEZAS EXTRA GRATIS',
-                shortLabel: '+3 PIEZAS',
-                code: '3EXTRAS',
-                desc: '3 alitas o boneless extra gratis en tu orden'
-            },
-            {
-                id: 'kingcombo',
-                points: 4500,
-                title: '20% OFF + PAPAS GRATIS',
-                shortLabel: 'REY ARCADE',
-                code: 'REYARCADE',
-                desc: 'Premio máximo para maestros de la charola S.N.A.X.'
-            }
-        ];
-
-        let unlockedRewardsThisRun = [];
-        let rewardToastTimeout = null;
-
-        // Populate Rewards Modal Catalog
-        function buildRewardsCatalog() {
-            rewardsCatalogList.innerHTML = '';
-            REWARD_TIERS.forEach(tier => {
-                const card = document.createElement('div');
-                card.className = 'bg-gray-900 border border-amber-500/50 rounded-lg p-2.5 flex items-center justify-between gap-2';
-                card.innerHTML = `
-                    <div>
-                        <div class="pixel-font text-[9px] text-amber-400">${tier.points} PTS</div>
-                        <div class="pixel-font text-[10px] sm:text-xs text-white mt-0.5">${tier.title}</div>
-                        <div class="text-xs text-gray-400 leading-tight mt-0.5">${tier.desc}</div>
-                    </div>
-                    <span class="pixel-font text-[9px] bg-black border border-yellow-400 text-yellow-400 px-2 py-1 rounded shrink-0">${tier.code}</span>
-                `;
-                rewardsCatalogList.appendChild(card);
-            });
-        }
-        buildRewardsCatalog();
-
-        function showRewardToast(tier) {
-            if (rewardToastTimeout) clearTimeout(rewardToastTimeout);
-            rewardToastTitle.textContent = tier.title;
-            rewardToastCode.textContent = tier.code;
-            rewardToast.classList.remove('hidden');
-            rewardToastTimeout = setTimeout(() => {
-                rewardToast.classList.add('hidden');
-            }, 3400);
-        }
-
-        function checkMilestoneRewards() {
-            for (const tier of REWARD_TIERS) {
-                if (score >= tier.points && !unlockedRewardsThisRun.some(r => r.id === tier.id)) {
-                    unlockedRewardsThisRun.push(tier);
-                    playSound('reward');
-                    showRewardToast(tier);
-                    spawnParticles(player.x + player.width / 2, player.y - 10, ['#facc15', '#34d399', '#ef4444', '#ffffff'], 24);
-                }
-            }
-        }
-
-        // Item Definitions (5 pts common items vs 10 pts rarer items)
-        const itemTypes = [
-            { type: 'wing_buffalo', label: 'Alita ATOMIC', pts: 5, prob: 0.36, badge: '+5 pts' },
-            { type: 'veggie_sticks', label: 'Zanahoria/Pepino', pts: 5, prob: 0.24, badge: '+5 pts' },
-            { type: 'boneless_bbq', label: 'Boneless BBQ', pts: 10, prob: 0.11, badge: '+10 pts' },
-            { type: 'fries', label: 'Papas francesas', pts: 10, prob: 0.09, badge: '+10 pts' },
-            { type: 'ranch_cup', label: 'Vasito Ranch', pts: 10, prob: 0.07, badge: '+10 pts' },
-            { type: 'chili', label: 'Chile Picante', pts: -1, prob: 0.08, badge: '¡EVITA!', hazard: true },
-            { type: 'ice', label: 'Cubo de Hielo', pts: -1, prob: 0.05, badge: '¡EVITA!', hazard: true }
-        ];
-
-        // Populate Start Screen Visual Guide with actual rendered Pixel Art icons
-        function buildStartGuide() {
-            const grid = document.getElementById('item-guide-grid');
-            grid.innerHTML = '';
-            itemTypes.forEach(item => {
-                const row = document.createElement('div');
-                row.className = 'flex items-center space-x-2 bg-black/60 p-1.5 rounded border border-gray-800';
-                
-                const miniCanvas = document.createElement('canvas');
-                miniCanvas.width = 32;
-                miniCanvas.height = 32;
-                miniCanvas.className = 'w-7 h-7 shrink-0';
-                const mCtx = miniCanvas.getContext('2d');
-                drawPixelMatrix(mCtx, SPRITES[item.type], 0, 0, 2);
-
-                const info = document.createElement('div');
-                info.className = 'leading-tight overflow-hidden';
-                info.innerHTML = `
-                    <div class="text-xs font-bold truncate ${item.hazard ? 'text-red-400' : 'text-white'}">${item.label}</div>
-                    <div class="pixel-font text-[9px] ${item.hazard ? 'text-red-500' : 'text-yellow-400'}">${item.badge}</div>
-                `;
-                row.appendChild(miniCanvas);
-                row.appendChild(info);
-                grid.appendChild(row);
-            });
-        }
-        buildStartGuide();
-
-        // Render pixel art hearts in HUD
-        function renderLivesHUD() {
-            livesContainerEl.innerHTML = '';
-            for (let i = 0; i < Math.max(0, lives); i++) {
-                const hCanvas = document.createElement('canvas');
-                hCanvas.width = 24;
-                hCanvas.height = 20;
-                hCanvas.className = 'w-4 h-3.5 sm:w-5 sm:h-4';
-                const hCtx = hCanvas.getContext('2d');
-                drawPixelMatrix(hCtx, SPRITES.heart, 0, 0, 2);
-                livesContainerEl.appendChild(hCanvas);
-            }
-        }
-
-        // Responsive Canvas Resize
-        function resizeCanvas() {
-            const rect = canvas.parentElement.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
-            if (player) {
-                player.y = canvas.height - 68;
-                if (player.x > canvas.width - player.width) {
-                    player.x = Math.max(0, canvas.width - player.width);
-                }
-            }
-        }
-        window.addEventListener('resize', resizeCanvas);
-
-        // Player: Charola negra de unicel con papel encerado de cuadros rojos y blancos
-        let player = {
-            width: 104,
-            height: 52,
-            x: 150,
-            y: 300,
-            speed: 9.5,
-            tilt: 0,
-            catchBounce: 0
-        };
-        resizeCanvas();
-        player.x = canvas.width / 2 - player.width / 2;
-
-        // Controls
-        let keys = { ArrowLeft: false, ArrowRight: false, KeyA: false, KeyD: false };
-
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.ArrowLeft = true;
-            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.ArrowRight = true;
-            if (e.code === 'KeyP' || e.code === 'Escape') {
-                if (gameState === 'PLAYING') pauseGame();
-                else if (gameState === 'PAUSED') resumeGame();
-            }
-        });
-
-        window.addEventListener('keyup', (e) => {
-            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.ArrowLeft = false;
-            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.ArrowRight = false;
-        });
-
-        // Mobile Touch Buttons
-        const touchLeftBtn = document.getElementById('touch-left');
-        const touchRightBtn = document.getElementById('touch-right');
-        touchLeftBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); keys.ArrowLeft = true; });
-        touchLeftBtn.addEventListener('pointerup', () => { keys.ArrowLeft = false; });
-        touchLeftBtn.addEventListener('pointerleave', () => { keys.ArrowLeft = false; });
-        touchRightBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); keys.ArrowRight = true; });
-        touchRightBtn.addEventListener('pointerup', () => { keys.ArrowRight = false; });
-        touchRightBtn.addEventListener('pointerleave', () => { keys.ArrowRight = false; });
-
-        // Direct Drag / Touch on Canvas
-        let isDragging = false;
-        canvas.addEventListener('pointerdown', (e) => {
-            if (gameState !== 'PLAYING') return;
-            isDragging = true;
-            updatePlayerX(e.clientX);
-        });
-        canvas.addEventListener('pointermove', (e) => {
-            if (isDragging && gameState === 'PLAYING') updatePlayerX(e.clientX);
-        });
-        window.addEventListener('pointerup', () => { isDragging = false; });
-
-        function updatePlayerX(clientX) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const canvasX = (clientX - rect.left) * scaleX;
-            const targetX = canvasX - player.width / 2;
-            player.tilt = Math.max(-0.08, Math.min(0.08, (targetX - player.x) * 0.01));
-            player.x = Math.max(0, Math.min(canvas.width - player.width, targetX));
-        }
-
-        // Particles & Falling Items
-        let items = [];
-        let particles = [];
-        let spawnTimer = 0;
-        let spawnInterval = 58;
-
-        function spawnParticles(x, y, colors, count = 10) {
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x: x,
-                    y: y,
-                    vx: (Math.random() - 0.5) * 7,
-                    vy: (Math.random() - 0.8) * 6,
-                    size: Math.floor(Math.random() * 4) + 3,
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    life: 24 + Math.random() * 12
-                });
-            }
-        }
-
-        function spawnItem() {
-            let rand = Math.random();
-            let cumulative = 0;
-            let chosen = itemTypes[0];
-            for (let it of itemTypes) {
-                cumulative += it.prob;
-                if (rand <= cumulative) {
-                    chosen = it;
-                    break;
-                }
-            }
-
-            const size = 44; // 16x16 matrix scaled cleanly
-            const x = Math.random() * (canvas.width - size - 32) + 16;
-            const speed = (2.4 + Math.random() * 1.4) + (level * 0.38);
-
-            items.push({
-                ...chosen,
-                x: x,
-                y: -52,
-                size: size,
-                speed: speed,
-                wobblePhase: Math.random() * Math.PI * 2
-            });
-        }
-
-        function createPopup(text, x, y, color = '#facc15') {
-            const popup = document.createElement('div');
-            popup.className = 'absolute pixel-font text-[10px] sm:text-xs font-bold pointer-events-none transition-all duration-700 ease-out';
-            popup.style.left = `${Math.max(5, Math.min(82, (x / canvas.width) * 100))}%`;
-            popup.style.top = `${Math.max(10, Math.min(85, (y / canvas.height) * 100))}%`;
-            popup.style.color = color;
-            popup.style.textShadow = '2px 2px 0px #000';
-            popup.textContent = text;
-            popupContainer.appendChild(popup);
-            
-            requestAnimationFrame(() => {
-                popup.style.transform = 'translateY(-35px)';
-                popup.style.opacity = '0';
-            });
-            setTimeout(() => popup.remove(), 700);
-        }
-
-        // --- Render Player: Charola Negra de Unicel con Papel Encerado de Cuadros ---
-        function drawTakeoutTray(x, y, w, h) {
-            ctx.save();
-            const bounceOffset = player.catchBounce > 0 ? Math.sin(player.catchBounce * 0.5) * 4 : 0;
-            ctx.translate(x + w / 2, y + h / 2 + bounceOffset);
-            ctx.rotate(player.tilt);
-
-            const hw = w / 2;
-            const hh = h / 2;
-
-            // Open top lid of black styrofoam clamshell tray (back flap)
-            ctx.fillStyle = '#18181b';
-            ctx.fillRect(-hw + 6, -hh - 14, w - 12, 16);
-            ctx.strokeStyle = '#3f3f46';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-hw + 6, -hh - 14, w - 12, 16);
-
-            // Red & white checkered deli paper liner inside tray
-            const checkSize = 6;
-            const innerX = -hw + 8;
-            const innerY = -hh - 6;
-            const innerW = w - 16;
-            const innerH = 14;
-            for (let py = 0; py < innerH; py += checkSize) {
-                for (let px = 0; px < innerW; px += checkSize) {
-                    const isRed = ((px / checkSize) + (py / checkSize)) % 2 === 0;
-                    ctx.fillStyle = isRed ? '#dc2626' : '#f8fafc';
-                    ctx.fillRect(
-                        innerX + px,
-                        innerY + py,
-                        Math.min(checkSize, innerW - px),
-                        Math.min(checkSize, innerH - py)
-                    );
-                }
-            }
-
-            // Main black styrofoam base tray
-            ctx.fillStyle = '#09090b';
-            ctx.fillRect(-hw, -hh + 4, w, h - 4);
-
-            // Top rim & front latch tabs (iconic clamshell notches)
-            ctx.fillStyle = '#27272a';
-            ctx.fillRect(-hw - 3, -hh + 2, w + 6, 7);
-            ctx.fillRect(-hw + 16, hh - 2, 16, 6);
-            ctx.fillRect(hw - 32, hh - 2, 16, 6);
-
-            // Border highlight
-            ctx.strokeStyle = '#52525b';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-hw, -hh + 4, w, h - 4);
-
-            // S.N.A.X. Arcade Badge on front of tray
-            ctx.fillStyle = '#dc2626';
-            ctx.fillRect(-28, -hh + 15, 56, 18);
-            ctx.fillStyle = '#facc15';
-            ctx.font = 'bold 9px "Press Start 2P"';
-            ctx.textAlign = 'center';
-            ctx.fillText('S.N.A.X.', 0, -hh + 28);
-
-            ctx.restore();
-        }
-
-        // --- Game Loop Update ---
-        function updateGame() {
-            if (gameState !== 'PLAYING') return;
-
-            // Keyboard movement & smooth tilt
-            if (keys.ArrowLeft || keys.KeyA) {
-                player.x -= player.speed;
-                player.tilt = -0.05;
-            } else if (keys.ArrowRight || keys.KeyD) {
-                player.x += player.speed;
-                player.tilt = 0.05;
-            } else {
-                player.tilt *= 0.8;
-            }
-
-            if (player.catchBounce > 0) player.catchBounce--;
-
-            // Boundary constraints
-            if (player.x < 0) player.x = 0;
-            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
-
-            // Combo decay timer
-            if (comboCount > 1) {
-                comboTimer--;
-                if (comboTimer <= 0) {
-                    comboCount = 0;
-                    comboBadgeEl.classList.add('hidden');
-                }
-            }
-
-            // Item Spawning
-            spawnTimer++;
-            const currentSpawnRate = Math.max(24, spawnInterval - (level * 4));
-            if (spawnTimer >= currentSpawnRate) {
-                spawnItem();
-                spawnTimer = 0;
-            }
-
-            // Update falling items
-            for (let i = items.length - 1; i >= 0; i--) {
-                const it = items[i];
-                it.y += it.speed;
-                it.wobblePhase += 0.07;
-
-                const hitMargin = 8;
-                if (
-                    it.x + it.size - hitMargin > player.x &&
-                    it.x + hitMargin < player.x + player.width &&
-                    it.y + it.size - hitMargin > player.y - 6 &&
-                    it.y + hitMargin < player.y + player.height
-                ) {
-                    player.catchBounce = 10;
-
-                    if (it.hazard) {
-                        lives--;
-                        comboCount = 0;
-                        comboBadgeEl.classList.add('hidden');
-                        playSound('hurt');
-                        spawnParticles(it.x + it.size / 2, it.y + it.size / 2, ['#ef4444', '#facc15', '#38bdf8'], 14);
-                        createPopup('-1 VIDA', it.x, it.y - 10, '#ef4444');
-                        if (lives <= 0) {
-                            updateHUD();
-                            triggerGameOver();
-                            return;
-                        }
-                    } else {
-                        comboCount++;
-                        comboTimer = 110; // frames to keep combo alive
-                        const multiplier = comboCount >= 5 ? 2 : 1;
-                        const earned = it.pts * multiplier;
-                        score += earned;
-
-                        // Play each item's signature sound effect
-                        playSound(it.type);
-
-                        if (multiplier > 1) {
-                            comboBadgeEl.textContent = `COMBO x2`;
-                            comboBadgeEl.classList.remove('hidden');
-                            playSound('combo');
-                            createPopup(`+${earned} x2!`, it.x, it.y - 10, '#facc15');
-                        } else if (it.pts >= 10) {
-                            createPopup(`+${earned}`, it.x, it.y - 10, '#34d399');
-                        } else {
-                            createPopup(`+${earned}`, it.x, it.y - 10, '#fde047');
-                        }
-
-                        spawnParticles(it.x + it.size / 2, it.y + it.size / 2, ['#f97316', '#facc15', '#ffffff'], 10);
-
-                        // Check if player unlocked a real promo coupon
-                        checkMilestoneRewards();
-
-                        const newLevel = Math.floor(score / 200) + 1;
-                        if (newLevel > level) {
-                            level = newLevel;
-                            playSound('levelup');
-                            createPopup(`¡NIVEL ${level}!`, canvas.width / 2 - 45, canvas.height / 2, '#38bdf8');
-                        }
-                    }
-
-                    items.splice(i, 1);
-                    updateHUD();
-                    continue;
-                }
-
-                // Missed item (reset combo if good food drops)
-                if (it.y > canvas.height + 40) {
-                    if (!it.hazard && comboCount > 0) {
-                        comboCount = 0;
-                        comboBadgeEl.classList.add('hidden');
-                    }
-                    items.splice(i, 1);
-                }
-            }
-
-            // Update particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.25; // gravity
-                p.life--;
-                if (p.life <= 0) particles.splice(i, 1);
-            }
-        }
-
-        // --- Render Frame ---
-        function renderGame() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Retro subtle grid floor
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
-            ctx.lineWidth = 1;
-            for (let x = 0; x < canvas.width; x += 32) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-                ctx.stroke();
-            }
-            for (let y = 0; y < canvas.height; y += 32) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-                ctx.stroke();
-            }
-
-            // Render Pixel Art falling items
-            for (const it of items) {
-                const wobbleX = Math.sin(it.wobblePhase) * 2.5;
-                const pixelScale = it.size / 16;
-                drawPixelMatrix(ctx, SPRITES[it.type], it.x + wobbleX, it.y, pixelScale);
-            }
-
-            // Render Pixel Particles
-            for (const p of particles) {
-                ctx.fillStyle = p.color;
-                ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
-            }
-
-            // Render Player Black Foam Tray
-            drawTakeoutTray(player.x, player.y, player.width, player.height);
-        }
-
-        function gameLoop() {
-            if (gameState !== 'PLAYING') return;
-            updateGame();
-            renderGame();
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
-
-        function updateHUD() {
-            scoreValEl.textContent = String(score).padStart(6, '0');
-            levelValEl.textContent = level;
-            renderLivesHUD();
-        }
-
-        function syncSoundButtons() {
-            const label = soundEnabled ? '🔊 AUDIO: ON' : '🔇 AUDIO: OFF';
-            const pauseLabel = soundEnabled ? '🔊 SONIDO: ON' : '🔇 SONIDO: OFF';
-            soundToggleBtn.textContent = label;
-            pauseSoundBtn.textContent = pauseLabel;
-        }
-
-        // --- State Transitions (Start, Pause, Resume, Restart, Exit, GameOver) ---
-        function startGame() {
-            initAudio();
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-
-            score = 0;
-            lives = 3;
-            level = 1;
-            comboCount = 0;
-            comboTimer = 0;
-            items = [];
-            particles = [];
-            spawnTimer = 0;
-            unlockedRewardsThisRun = [];
-            if (rewardToastTimeout) clearTimeout(rewardToastTimeout);
-            rewardToast.classList.add('hidden');
-            comboBadgeEl.classList.add('hidden');
-
-            resizeCanvas();
-            player.x = canvas.width / 2 - player.width / 2;
-            updateHUD();
-
-            startScreen.classList.add('hidden');
-            rewardsModal.classList.add('hidden');
-            rewardsModal.classList.remove('flex');
-            pauseScreen.classList.add('hidden');
-            pauseScreen.classList.remove('flex');
-            gameOverScreen.classList.add('hidden');
-            gameOverScreen.classList.remove('flex');
-            pauseBtn.classList.remove('hidden');
-
-            gameState = 'PLAYING';
-            startBGM();
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
-
-        function pauseGame() {
-            if (gameState !== 'PLAYING') return;
-            gameState = 'PAUSED';
-            stopBGM();
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            playSound('pause');
-            pauseScreen.classList.remove('hidden');
-            pauseScreen.classList.add('flex');
-        }
-
-        function resumeGame() {
-            if (gameState !== 'PAUSED') return;
-            pauseScreen.classList.add('hidden');
-            pauseScreen.classList.remove('flex');
-            gameState = 'PLAYING';
-            startBGM();
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
-
-        function exitToMainMenu() {
-            stopBGM();
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            gameState = 'START';
-            items = [];
-            particles = [];
-            comboBadgeEl.classList.add('hidden');
-            pauseBtn.classList.add('hidden');
-            pauseScreen.classList.add('hidden');
-            pauseScreen.classList.remove('flex');
-            gameOverScreen.classList.add('hidden');
-            gameOverScreen.classList.remove('flex');
-            startScreen.classList.remove('hidden');
-            startHighscoreEl.textContent = highscore;
-            renderGame();
-        }
-
-        function triggerGameOver() {
-            gameState = 'GAMEOVER';
-            stopBGM();
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            pauseBtn.classList.add('hidden');
-            rewardToast.classList.add('hidden');
-            playSound('gameover');
-
-            if (score > highscore) {
-                highscore = score;
-                localStorage.setItem('snax_highscore', String(highscore));
-                startHighscoreEl.textContent = highscore;
-                finalCommentEl.textContent = '¡NUEVO RÉCORD DE ALITAS!';
-            } else {
-                finalCommentEl.textContent = '¡Se acabaron las alitas!';
-            }
-
-            finalScoreEl.textContent = score;
-            highscoreValEl.textContent = highscore;
-            finalLevelEl.textContent = level;
-
-            // Display highest unlocked coupon ticket or hint
-            if (unlockedRewardsThisRun.length > 0) {
-                const topReward = unlockedRewardsThisRun[unlockedRewardsThisRun.length - 1];
-                couponTitleEl.textContent = topReward.title;
-                couponDescEl.textContent = topReward.desc;
-                couponCodeTextEl.textContent = topReward.code;
-                copyCouponBtn.textContent = 'COPIAR';
-
-                allUnlockedBadgesEl.innerHTML = '';
-                unlockedRewardsThisRun.forEach(r => {
-                    const chip = document.createElement('button');
-                    chip.type = 'button';
-                    chip.className = 'pixel-font text-[8px] px-1.5 py-0.5 rounded border ' +
-                        (r.id === topReward.id ? 'bg-yellow-400 text-black border-white' : 'bg-gray-800 text-yellow-300 border-yellow-500/40');
-                    chip.textContent = r.shortLabel;
-                    chip.title = 'Seleccionar cupón ' + r.code;
-                    chip.addEventListener('click', () => {
-                        couponTitleEl.textContent = r.title;
-                        couponDescEl.textContent = r.desc;
-                        couponCodeTextEl.textContent = r.code;
-                        copyCouponBtn.textContent = 'COPIAR';
-                    });
-                    allUnlockedBadgesEl.appendChild(chip);
-                });
-
-                unlockedCouponBox.classList.remove('hidden');
-                noCouponHint.classList.add('hidden');
-            } else {
-                unlockedCouponBox.classList.add('hidden');
-                noCouponHint.classList.remove('hidden');
-            }
-
-            gameOverScreen.classList.remove('hidden');
-            gameOverScreen.classList.add('flex');
-        }
-
-        // Copy Coupon Code using execCommand fallback for iFrame compatibility
-        copyCouponBtn.addEventListener('click', () => {
-            const code = couponCodeTextEl.textContent;
-            const tempInput = document.createElement('input');
-            tempInput.value = code;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            try {
-                document.execCommand('copy');
-                copyCouponBtn.textContent = '¡COPIADO!';
-                playSound('bonus');
-                setTimeout(() => {
-                    copyCouponBtn.textContent = 'COPIAR';
-                }, 2000);
-            } catch (err) {
-                copyCouponBtn.textContent = code;
-            }
-            document.body.removeChild(tempInput);
-        });
-
-        // Rewards Modal Handlers
-        openRewardsBtn.addEventListener('click', () => {
-            rewardsModal.classList.remove('hidden');
-            rewardsModal.classList.add('flex');
-        });
-        closeRewardsBtn.addEventListener('click', () => {
-            rewardsModal.classList.add('hidden');
-            rewardsModal.classList.remove('flex');
-        });
-
-        // Event Listeners
-        startBtn.addEventListener('click', startGame);
-        pauseBtn.addEventListener('click', pauseGame);
-        resumeBtn.addEventListener('click', resumeGame);
-        pauseRestartBtn.addEventListener('click', startGame);
-        exitMenuBtn.addEventListener('click', exitToMainMenu);
-        restartBtn.addEventListener('click', startGame);
-        gameOverMenuBtn.addEventListener('click', exitToMainMenu);
-
-        function toggleAudio() {
-            soundEnabled = !soundEnabled;
-            syncSoundButtons();
-            if (soundEnabled && gameState === 'PLAYING') {
-                startBGM();
-            } else {
-                stopBGM();
-            }
-        }
-        soundToggleBtn.addEventListener('click', toggleAudio);
-        pauseSoundBtn.addEventListener('click', toggleAudio);
-
-        // Initial render
-        renderLivesHUD();
-        renderGame();
-    </script>
+    <!-- Game Logic, Adaptive AI, Pixel Art Matrices & Google Sheets Sync -->
+    <script src="script.js"></script>
 </body>
 </html>
