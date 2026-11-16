@@ -58,6 +58,16 @@
             transform: translateY(4px);
             box-shadow: 0 0 0 #065f46;
         }
+        .btn-arcade-amber {
+            box-shadow: 0 4px 0 #92400e;
+        }
+        .btn-arcade-amber:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #92400e;
+        }
+        .ticket-border {
+            background-image: radial-gradient(circle at 0 50%, transparent 8px, #111827 9px), radial-gradient(circle at 100% 50%, transparent 8px, #111827 9px);
+        }
         canvas {
             image-rendering: pixelated;
             image-rendering: crisp-edges;
@@ -104,29 +114,61 @@
             <!-- Floating Combo / Score Popups Container -->
             <div id="popup-container" class="absolute inset-0 pointer-events-none z-20 overflow-hidden"></div>
 
+            <!-- Milestone Reward Unlock Toast Banner (Non-intrusive top banner during play) -->
+            <div id="reward-toast" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-sm bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black border-2 border-white rounded-lg px-3 py-2 shadow-[0_0_20px_rgba(250,204,21,0.9)] pointer-events-none transition-all duration-300">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="text-left">
+                        <div class="pixel-font text-[8px] sm:text-[9px] text-red-700 font-bold">★ ¡PREMIO DESBLOQUEADO! ★</div>
+                        <div id="reward-toast-title" class="pixel-font text-[10px] sm:text-xs font-extrabold text-black mt-0.5">10% DE DESCUENTO</div>
+                    </div>
+                    <span id="reward-toast-code" class="pixel-font text-[9px] bg-black text-yellow-400 px-2 py-1 rounded">SNAX10</span>
+                </div>
+            </div>
+
             <!-- Start Screen Overlay -->
-            <div id="start-screen" class="absolute inset-0 bg-black/92 flex flex-col items-center justify-center p-4 sm:p-6 z-40 text-center overflow-y-auto">
-                <div class="mb-1 text-yellow-400 pixel-font text-sm sm:text-xl animate-pulse">★ S.N.A.X. ARCADE ★</div>
-                <h1 class="text-xl sm:text-3xl pixel-font text-red-500 mb-3 tracking-wider drop-shadow-[0_4px_4px_rgba(239,68,68,0.8)]">WINGS & BONELESS RUSH</h1>
+            <div id="start-screen" class="absolute inset-0 bg-black/92 flex flex-col items-center justify-center p-3 sm:p-5 z-40 text-center overflow-y-auto">
+                <div class="mb-1 text-yellow-400 pixel-font text-xs sm:text-lg animate-pulse">★ S.N.A.X. ARCADE ★</div>
+                <h1 class="text-lg sm:text-3xl pixel-font text-red-500 mb-2 tracking-wider drop-shadow-[0_4px_4px_rgba(239,68,68,0.8)]">WINGS & BONELESS RUSH</h1>
                 
-                <div class="text-xs sm:text-sm pixel-font text-green-400 mb-3">
+                <div class="text-[11px] sm:text-sm pixel-font text-green-400 mb-2.5">
                     HIGH SCORE: <span id="start-highscore" class="text-yellow-400">0</span>
                 </div>
 
                 <!-- Visual Pixel Art Legend -->
-                <div class="bg-gray-900/95 border-2 border-amber-500/60 p-3 sm:p-4 rounded-lg mb-4 w-full max-w-md text-left">
-                    <p class="text-yellow-400 pixel-font text-[10px] sm:text-xs mb-2.5 text-center border-b border-gray-800 pb-1.5">GUÍA DEL MENÚ PIXEL ART</p>
-                    <div id="item-guide-grid" class="grid grid-cols-2 gap-2 text-xs sm:text-sm text-gray-200">
+                <div class="bg-gray-900/95 border-2 border-amber-500/60 p-2.5 sm:p-3.5 rounded-lg mb-3 w-full max-w-md text-left">
+                    <p class="text-yellow-400 pixel-font text-[9px] sm:text-xs mb-2 text-center border-b border-gray-800 pb-1">GUÍA DEL MENÚ PIXEL ART</p>
+                    <div id="item-guide-grid" class="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-200">
                         <!-- Dynamically populated with mini pixel canvases -->
                     </div>
-                    <p class="text-[11px] sm:text-xs text-amber-300 mt-2.5 pt-2 border-t border-gray-800 text-center">
-                        Controles: Flechas ◀ ▶ / A-D o Arrastra tu charola en pantalla
+                    <p class="text-[10px] sm:text-xs text-amber-300 mt-2 pt-1.5 border-t border-gray-800 text-center">
+                        ¡Alcanza metas de puntos y gana premios reales!
                     </p>
                 </div>
 
-                <button id="start-btn" class="btn-arcade bg-red-600 hover:bg-red-500 text-white px-7 py-3.5 rounded text-sm sm:text-lg uppercase tracking-widest border-2 border-yellow-400">
-                    JUGAR
-                </button>
+                <div class="flex flex-wrap items-center justify-center gap-3">
+                    <button id="start-btn" class="btn-arcade bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded text-xs sm:text-base uppercase tracking-widest border-2 border-yellow-400">
+                        ▶ JUGAR
+                    </button>
+                    <button id="open-rewards-btn" class="btn-arcade btn-arcade-amber bg-amber-500 hover:bg-amber-400 text-black px-4 py-3 rounded text-xs sm:text-base uppercase tracking-wider border-2 border-white">
+                        🎁 PREMIOS
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rewards Catalog Modal (From Start Screen) -->
+            <div id="rewards-modal" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-4 sm:p-6 z-50 text-center overflow-y-auto">
+                <div class="bg-gray-950 border-4 border-yellow-400 p-4 sm:p-5 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(250,204,21,0.4)]">
+                    <h2 class="pixel-font text-sm sm:text-lg text-yellow-400 mb-1">🎁 PREMIOS S.N.A.X.</h2>
+                    <p class="text-gray-300 text-xs sm:text-sm mb-3">Supera estas puntuaciones en una partida y desbloquea tu cupón:</p>
+                    
+                    <div id="rewards-catalog-list" class="space-y-2 text-left mb-4">
+                        <!-- Dynamically populated reward tiers -->
+                    </div>
+
+                    <button id="close-rewards-btn" class="w-full btn-arcade bg-red-600 hover:bg-red-500 text-white py-2.5 rounded text-xs sm:text-sm border-2 border-yellow-400">
+                        VOLVER
+                    </button>
+                </div>
             </div>
 
             <!-- Pause Menu Overlay -->
@@ -154,30 +196,51 @@
             </div>
 
             <!-- Game Over Screen Overlay -->
-            <div id="gameover-screen" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-6 z-40 text-center">
-                <div class="text-2xl sm:text-4xl pixel-font text-red-600 mb-2 animate-pulse">GAME OVER</div>
-                <p id="final-comment" class="text-amber-400 text-lg sm:text-2xl mb-4">¡Se acabaron las alitas!</p>
+            <div id="gameover-screen" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-3 sm:p-5 z-40 text-center overflow-y-auto">
+                <div class="text-xl sm:text-3xl pixel-font text-red-600 mb-1 animate-pulse">GAME OVER</div>
+                <p id="final-comment" class="text-amber-400 text-base sm:text-xl mb-2.5">¡Se acabaron las alitas!</p>
                 
-                <div class="bg-gray-900 border-2 border-red-500 p-4 sm:p-5 rounded-lg mb-5 w-72 sm:w-80 max-w-full space-y-2.5">
-                    <div class="flex justify-between items-center text-base sm:text-lg">
+                <div class="bg-gray-900 border-2 border-red-500 p-3 sm:p-4 rounded-lg mb-3 w-full max-w-sm space-y-1.5">
+                    <div class="flex justify-between items-center text-sm sm:text-base">
                         <span class="text-gray-400">PUNTUACIÓN:</span>
-                        <span id="final-score" class="text-yellow-400 pixel-font text-xs sm:text-base">0</span>
+                        <span id="final-score" class="text-yellow-400 pixel-font text-xs sm:text-sm">0</span>
                     </div>
-                    <div class="flex justify-between items-center text-base sm:text-lg">
+                    <div class="flex justify-between items-center text-sm sm:text-base">
                         <span class="text-gray-400">RÉCORD:</span>
-                        <span id="highscore-val" class="text-green-400 pixel-font text-xs sm:text-base">0</span>
+                        <span id="highscore-val" class="text-green-400 pixel-font text-xs sm:text-sm">0</span>
                     </div>
-                    <div class="flex justify-between items-center text-base sm:text-lg">
+                    <div class="flex justify-between items-center text-sm sm:text-base">
                         <span class="text-gray-400">NIVEL:</span>
-                        <span id="final-level" class="text-sky-400 pixel-font text-xs sm:text-base">1</span>
+                        <span id="final-level" class="text-sky-400 pixel-font text-xs sm:text-sm">1</span>
                     </div>
                 </div>
 
-                <div class="flex flex-col sm:flex-row gap-3 w-72 sm:w-auto">
-                    <button id="restart-btn" class="btn-arcade btn-arcade-green bg-green-600 hover:bg-green-500 text-white px-5 py-3.5 rounded text-xs sm:text-sm uppercase tracking-wider border-2 border-yellow-400">
+                <!-- Unlocked Coupon Ticket Card -->
+                <div id="unlocked-coupon-box" class="hidden w-full max-w-sm mb-3 bg-gradient-to-b from-amber-950/90 to-gray-900 border-2 border-dashed border-yellow-400 rounded-lg p-3 text-center shadow-[0_0_15px_rgba(250,204,21,0.3)]">
+                    <div class="pixel-font text-[9px] sm:text-[10px] text-yellow-400 mb-1">★ CUPÓN DESBLOQUEADO ★</div>
+                    <div id="coupon-title" class="pixel-font text-xs sm:text-sm text-white mb-1">10% DE DESCUENTO</div>
+                    <p id="coupon-desc" class="text-xs text-amber-200 mb-2">En tu próximo pedido de alitas o boneless</p>
+                    
+                    <div class="flex items-center justify-center gap-2 bg-black/80 border border-yellow-500/60 rounded px-2.5 py-1.5 mb-1.5">
+                        <span id="coupon-code-text" class="pixel-font text-xs sm:text-sm text-green-400 tracking-wider">SNAX10</span>
+                        <button id="copy-coupon-btn" class="bg-yellow-400 hover:bg-yellow-300 text-black pixel-font text-[9px] px-2 py-1 rounded active:scale-95 transition">
+                            COPIAR
+                        </button>
+                    </div>
+                    <div id="all-unlocked-badges" class="flex flex-wrap justify-center gap-1 mb-1"></div>
+                    <p class="text-[11px] text-gray-300">📸 Toma captura y muéstrala al pedir en S.N.A.X.</p>
+                </div>
+
+                <!-- Next Reward Hint when no reward unlocked yet -->
+                <div id="no-coupon-hint" class="hidden w-full max-w-sm mb-3 bg-gray-900/90 border border-gray-700 rounded-lg p-2.5 text-xs text-gray-300">
+                    🎯 ¡Llega a <span class="text-yellow-400 font-bold">500 PTS</span> para desbloquear tu primer cupón de descuento!
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-2.5 w-full max-w-sm justify-center">
+                    <button id="restart-btn" class="flex-1 btn-arcade btn-arcade-green bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded text-[11px] sm:text-xs uppercase tracking-wider border-2 border-yellow-400">
                         VOLVER A JUGAR
                     </button>
-                    <button id="gameover-menu-btn" class="btn-arcade bg-zinc-700 hover:bg-zinc-600 text-white px-5 py-3.5 rounded text-xs sm:text-sm uppercase tracking-wider border-2 border-gray-400">
+                    <button id="gameover-menu-btn" class="flex-1 btn-arcade bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-3 rounded text-[11px] sm:text-xs uppercase tracking-wider border-2 border-gray-400">
                         MENÚ PRINCIPAL
                     </button>
                 </div>
@@ -289,113 +352,118 @@
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.42);
                 osc.start(now);
                 osc.stop(now + 0.42);
+            } else if (type === 'reward') {
+                // Exciting 8-bit victory fanfare for unlocking a real promo coupon
+                osc.type = 'square';
+                const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50];
+                const times = [0, 0.08, 0.16, 0.24, 0.34, 0.42];
+                notes.forEach((freq, idx) => {
+                    osc.frequency.setValueAtTime(freq, now + times[idx]);
+                });
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.62);
+                osc.start(now);
+                osc.stop(now + 0.62);
             }
         }
 
         // --- 16x16 High-Detail Pixel Art Sprite Matrices ---
         const PALETTE = {
             '.': null,
-            'K': '#111827', // Dark outline
-            'W': '#ffffff', // Pure white
-            'B': '#fef08a', // Bone / light cream
-            'S': '#d97706', // Bone shadow
-            'O': '#f97316', // Buffalo orange
-            'R': '#dc2626', // Deep buffalo red
-            'H': '#fdba74', // Sauce highlight
-            'D': '#7f1d1d', // Dark shadow red
-            'Q': '#78350f', // BBQ dark brown
-            'M': '#9a3412', // BBQ medium brown
-            'C': '#d97706', // Crispy breading gold
-            'Y': '#facc15', // Fries bright yellow
-            'G': '#ca8a04', // Fries shadow gold
-            'L': '#84cc16', // Cucumber bright green
-            'E': '#15803d', // Cucumber dark skin
-            'P': '#bbf7d0', // Cucumber core
-            'N': '#ea580c', // Carrot bright orange
-            'T': '#9a3412', // Carrot dark line
-            'A': '#e5e7eb', // Ranch cup gray-white
-            'Z': '#9ca3af', // Ranch lid rim
-            'F': '#ef4444', // Flame red
-            'U': '#fde047', // Flame yellow core
-            'V': '#16a34a', // Chili stem green
-            'I': '#38bdf8', // Ice blue
-            'J': '#bae6fd', // Ice highlight
-            'X': '#0284c7'  // Ice deep shadow
+            'K': '#09090b', // Outline Black
+            'W': '#ffffff', // Pure White
+            'B': '#d97706', // Bone / Breaded Base
+            'L': '#fbbf24', // Golden Highlight
+            'O': '#ea580c', // Buffalo Sauce Orange
+            'R': '#dc2626', // Deep Sauce / Chili Red
+            'D': '#7f1d1d', // BBQ Dark Glaze
+            'M': '#9a3412', // BBQ Medium Brown
+            'G': '#22c55e', // Cucumber / Stem Green
+            'V': '#86efac', // Light Cucumber / Stem
+            'C': '#f97316', // Carrot Orange
+            'Y': '#facc15', // French Fry Yellow
+            'I': '#38bdf8', // Ice Blue
+            'A': '#bae6fd', // Ice Highlight
+            'E': '#15803d', // Dark Leaf Green
+            'F': '#f97316', // Fire Spark Orange
+            'U': '#fef08a', // Fire Core Yellow
+            'S': '#cbd5e1', // Ranch Cup Rim Gray
+            'P': '#f8fafc'  // Ranch Cream White
         };
 
         const SPRITES = {
-            // 16x16 Alita ATOMIC (huesito en punta + carne jugosa naranja/roja brillante)
+            // 16x16 Alita Buffalo (con hueso expuesto y salsa naranja brillante)
             wing_buffalo: [
-                "...........KK...",
-                "..........KWWK..",
-                ".........KWBBWK.",
-                "........KRRKWSK.",
-                "......KKRRHROKK.",
-                ".....KRRHHROORK.",
-                "....KRRHROOORRK.",
-                "...KRROOORRRDRK.",
-                "..KRROOORRRDDRK.",
-                ".KROOORRRDDDRK..",
-                ".KROORRRDDDRK...",
-                ".KRORRRDDDRK....",
-                "..KRRRDRRK......",
-                "...KKKKKK.......",
+                "....KKK.........",
+                "...KWWWK........",
+                "...KWBBWK.......",
+                "....KBBWKK......",
+                ".....KOOOOOK....",
+                "....KOOLLOOOK...",
+                "...KOOLLLLOOOK..",
+                "..KOOLLOOOOOOOK.",
+                "..KOOOOOOOOORRK.",
+                "..KOOOOOOORRRRK.",
+                "...KOOOOORRRRK..",
+                "....KOOORRRRK...",
+                ".....KRRRRKK....",
+                "......KKKK......",
                 "................",
                 "................"
             ],
-            // 16x16 Boneless BBQ (trozo empanizado irregular bañado en salsa café-rojiza brillante)
+            // 16x16 Boneless BBQ (trozo crujiente glaseado en salsa BBQ oscura)
             boneless_bbq: [
-                "................",
-                ".....KKKKK......",
-                "...KKQMMMQKK....",
-                "..KQMHHMMQQQK...",
-                ".KQMHMQRMMQQQK..",
-                ".KQMMQRRMMQQDK..",
-                "KQMMQRRRMMQQDDK.",
-                "KQMQRRRMMQQDDDK.",
-                "KQMMRRMMQQQDDDK.",
-                ".KQMMMMQQQDDDK..",
-                ".KQQMMQQQDDDDK..",
-                "..KQQQQDDDDKK...",
-                "...KKKKKKKK.....",
-                "................",
-                "................",
-                "................"
-            ],
-            // 16x16 Vasito de Ranch (vasito blanco con tapa translúcida y crema adentro)
-            ranch_cup: [
-                "................",
-                "...KKKKKKKKKK...",
-                "..KZZZZZZZZZZK..",
-                ".KWWWWWWWWWWWWK.",
-                ".KZZZZZZZZZZZZK.",
-                "..KWWWWWWWWWWK..",
-                "..KWWAAWWAAWWK..",
-                "..KWWWWWWWWWWK..",
-                "...KWWWWWWWWK...",
-                "...KWWAAWWAAK...",
-                "...KWWWWWWWWK...",
-                "....KWWWWWWK....",
-                "....KAAWWAAK....",
+                ".....KKKKKK.....",
+                "...KKMMMMMMKK...",
+                "..KMMLLMMMMMMK..",
+                ".KMMLLMMMMMMMMK.",
+                ".KMMMMDDDDMMMMK.",
+                "KMMMMDDDDDDMMMMK",
+                "KMMDDDDLLDDDDMMK",
+                "KMMMDDDDDDDDMMMK",
+                ".KMMMDDDDDDMMMK.",
+                ".KMMMMDDDDMMMMK.",
+                "..KMMMMMMMMMMK..",
+                "...KKMMMMMMKK...",
                 ".....KKKKKK.....",
                 "................",
+                "................",
                 "................"
             ],
-            // 16x16 Bastones de Zanahoria y Pepino (crujientes como en la charola)
+            // 16x16 Vasito de Aderezo Ranch con tapa
+            ranch_cup: [
+                "...KKKKKKKKKK...",
+                "..KWWWWWWWWWWK..",
+                ".KSSSSSSSSSSSSK.",
+                ".KWWWWWWWWWWWWK.",
+                "..KKKKKKKKKKKK..",
+                "..KPPPPPPPPPPK..",
+                "..KPPWWWWPPPPK..",
+                "...KPPPPPPPPK...",
+                "...KPPWWWWPPK...",
+                "...KPPPPPPPPK...",
+                "....KPPPPPPK....",
+                "....KPPPPPPK....",
+                ".....KKKKKK.....",
+                "................",
+                "................",
+                "................"
+            ],
+            // 16x16 Bastones de Zanahoria y Pepino
             veggie_sticks: [
-                ".........KKK....",
-                "........KLLLK...",
-                ".......KLPPPLK..",
-                "...KKK.KLPPPLK..",
-                "..KNNNK.KLPPELK.",
-                ".KNNTNNK.KLPELK.",
-                ".KNNNNNK..KPELK.",
-                ".KNNTNNK..KPEK..",
-                ".KNNNNNK...KK...",
-                ".KNNTNNK........",
-                ".KNNNNNK........",
-                "..KNNNK.........",
-                "...KKK..........",
+                "......KK...KK...",
+                ".....KCCK.KGGK..",
+                "....KCCCKKGGVK..",
+                "...KCCCKKGGVVK..",
+                "..KCCCKKGGVVK...",
+                ".KCCCKKGGVVK....",
+                ".KCCKKGGVVK.....",
+                "..KK.KGGVK......",
+                ".....KGGK.......",
+                "......KK........",
+                "................",
+                "................",
+                "................",
                 "................",
                 "................",
                 "................"
@@ -419,50 +487,50 @@
                 "................",
                 "................"
             ],
-            // 16x16 Chile Súper Picante con llamas (Obstáculo)
+            // 16x16 Chile Súper Picante (cuerpo curvo afilado de chile rojo brillante, tallo verde y chispas de fuego)
             chili: [
-                ".......KKK......",
-                "......KVVVK.....",
-                ".....KVVKK......",
-                "....KFFFK.......",
-                "...KFFUFK.......",
-                "..KFFUUFKKFFUK..",
-                "..KFFUUFFFFFK...",
-                "..KFFUFFFFFK....",
-                "...KFFFFFFK.....",
-                "....KFFFFK......",
-                ".....KFFK.......",
-                "......KK........",
-                "................",
-                "................",
-                "................",
+                "............KK..",
+                "...........KVVK.",
+                "..........KVVVK.",
+                ".........KEEEEK.",
+                "........KRRRRRK.",
+                "..KK...KRRWWRRK.",
+                ".KFUK.KRRWRRRDK.",
+                "..KK.KRRWRRRDDK.",
+                "....KRRRRRRDDK..",
+                "...KRRRRRRDDK...",
+                "..KRRRRRRDDK....",
+                ".KRRRRRRDDK.....",
+                "KRRRRRRDK.......",
+                "KRRRRDK.........",
+                ".KKKK...........",
                 "................"
             ],
             // 16x16 Cubo de Hielo (Obstáculo)
             ice: [
-                "................",
                 "..KKKKKKKKKKKK..",
-                ".KJJJJJJJJJJJIK.",
-                ".KJIIIIIIIIIIIK.",
-                ".KJIJJJIIIIIIIK.",
-                ".KJIJIIIIIIIIIK.",
-                ".KJIIIIIIIJJIIK.",
-                ".KJIIIIIIIJIIIK.",
-                ".KJIIIIIIIIIIIK.",
-                ".KIIIIIIIIIIIXK.",
-                ".KIIIIIIIIIIXXK.",
-                ".KXXXXXXXXXXXXK.",
+                ".KIIIIIIIIIIIIK.",
+                "KIIAAIIIIIIAAIIK",
+                "KIIAAIIIIIIAAIIK",
+                "KIIIIIIIIIIIIIIK",
+                "KIIIIIIWWIIIIIIK",
+                "KIIIIIWWWWIIIIIK",
+                "KIIIIIIWWIIIIIIK",
+                "KIIIIIIIIIIIIIIK",
+                "KIIAAIIIIIIAAIIK",
+                "KIIAAIIIIIIAAIIK",
+                ".KIIIIIIIIIIIIK.",
                 "..KKKKKKKKKKKK..",
                 "................",
                 "................",
                 "................"
             ],
-            // 12x12 Corazón Pixel Art para vidas
+            // 12x10 Corazón Pixel Art para vidas
             heart: [
                 ".KKK...KKK..",
                 "KRRRK.KRRRK.",
-                "KRHHRKRRRRRK",
-                "KRHRRRRRRRRK",
+                "KRWWRKRRRRRK",
+                "KRWRRRRRRRRK",
                 "KRRRRRRRRRRK",
                 ".KRRRRRRRRK.",
                 "..KRRRRRRK..",
@@ -472,16 +540,18 @@
             ]
         };
 
+        // Helper to draw a pixel matrix onto any 2D context
         function drawPixelMatrix(targetCtx, matrix, x, y, pixelSize) {
-            for (let r = 0; r < matrix.length; r++) {
-                const row = matrix[r];
-                for (let c = 0; c < row.length; c++) {
-                    const color = PALETTE[row[c]];
+            for (let row = 0; row < matrix.length; row++) {
+                const line = matrix[row];
+                for (let col = 0; col < line.length; col++) {
+                    const ch = line[col];
+                    const color = PALETTE[ch];
                     if (color) {
                         targetCtx.fillStyle = color;
                         targetCtx.fillRect(
-                            Math.floor(x + c * pixelSize),
-                            Math.floor(y + r * pixelSize),
+                            Math.floor(x + col * pixelSize),
+                            Math.floor(y + row * pixelSize),
                             Math.ceil(pixelSize),
                             Math.ceil(pixelSize)
                         );
@@ -490,13 +560,18 @@
             }
         }
 
-        // --- Game Setup & DOM References ---
+        // --- Core Game State & DOM References ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const scoreValEl = document.getElementById('score-val');
+        const levelValEl = document.getElementById('level-val');
+        const livesContainerEl = document.getElementById('lives-container');
+        const comboBadgeEl = document.getElementById('combo-badge');
 
         const startScreen = document.getElementById('start-screen');
         const pauseScreen = document.getElementById('pause-screen');
         const gameOverScreen = document.getElementById('gameover-screen');
+
         const startBtn = document.getElementById('start-btn');
         const pauseBtn = document.getElementById('pause-btn');
         const resumeBtn = document.getElementById('resume-btn');
@@ -507,16 +582,27 @@
         const gameOverMenuBtn = document.getElementById('gameover-menu-btn');
         const soundToggleBtn = document.getElementById('sound-toggle');
 
-        const scoreValEl = document.getElementById('score-val');
-        const levelValEl = document.getElementById('level-val');
-        const livesContainerEl = document.getElementById('lives-container');
-        const comboBadgeEl = document.getElementById('combo-badge');
         const startHighscoreEl = document.getElementById('start-highscore');
         const finalScoreEl = document.getElementById('final-score');
         const highscoreValEl = document.getElementById('highscore-val');
         const finalLevelEl = document.getElementById('final-level');
         const finalCommentEl = document.getElementById('final-comment');
         const popupContainer = document.getElementById('popup-container');
+
+        const rewardToast = document.getElementById('reward-toast');
+        const rewardToastTitle = document.getElementById('reward-toast-title');
+        const rewardToastCode = document.getElementById('reward-toast-code');
+        const openRewardsBtn = document.getElementById('open-rewards-btn');
+        const closeRewardsBtn = document.getElementById('close-rewards-btn');
+        const rewardsModal = document.getElementById('rewards-modal');
+        const rewardsCatalogList = document.getElementById('rewards-catalog-list');
+        const unlockedCouponBox = document.getElementById('unlocked-coupon-box');
+        const noCouponHint = document.getElementById('no-coupon-hint');
+        const couponTitleEl = document.getElementById('coupon-title');
+        const couponDescEl = document.getElementById('coupon-desc');
+        const couponCodeTextEl = document.getElementById('coupon-code-text');
+        const copyCouponBtn = document.getElementById('copy-coupon-btn');
+        const allUnlockedBadgesEl = document.getElementById('all-unlocked-badges');
 
         let gameState = 'START'; // START, PLAYING, PAUSED, GAMEOVER
         let animationFrameId = null;
@@ -528,11 +614,90 @@
         let highscore = parseInt(localStorage.getItem('snax_highscore') || '0', 10);
         startHighscoreEl.textContent = highscore;
 
+        // Milestone Rewards Configuration
+        const REWARD_TIERS = [
+            {
+                id: 'disc10',
+                points: 500,
+                title: '10% DE DESCUENTO',
+                shortLabel: '10% OFF',
+                code: 'SNAX10',
+                desc: 'En tu próximo pedido de alitas o boneless'
+            },
+            {
+                id: 'freefries',
+                points: 1200,
+                title: 'PAPAS FRITAS GRATIS',
+                shortLabel: 'PAPAS GRATIS',
+                code: 'PAPAS8BIT',
+                desc: 'Orden de papas doradas gratis al comprar tu combo'
+            },
+            {
+                id: 'extrapcs',
+                points: 2200,
+                title: '+3 PIEZAS EXTRA GRATIS',
+                shortLabel: '+3 PIEZAS',
+                code: '3EXTRAS',
+                desc: '3 alitas o boneless extra gratis en tu orden'
+            },
+            {
+                id: 'kingcombo',
+                points: 3500,
+                title: '20% OFF + PAPAS GRATIS',
+                shortLabel: 'REY ARCADE',
+                code: 'REYARCADE',
+                desc: 'Premio máximo para maestros de la charola S.N.A.X.'
+            }
+        ];
+
+        let unlockedRewardsThisRun = [];
+        let rewardToastTimeout = null;
+
+        // Populate Rewards Modal Catalog
+        function buildRewardsCatalog() {
+            rewardsCatalogList.innerHTML = '';
+            REWARD_TIERS.forEach(tier => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-900 border border-amber-500/50 rounded-lg p-2.5 flex items-center justify-between gap-2';
+                card.innerHTML = `
+                    <div>
+                        <div class="pixel-font text-[9px] text-amber-400">${tier.points} PTS</div>
+                        <div class="pixel-font text-[10px] sm:text-xs text-white mt-0.5">${tier.title}</div>
+                        <div class="text-xs text-gray-400 leading-tight mt-0.5">${tier.desc}</div>
+                    </div>
+                    <span class="pixel-font text-[9px] bg-black border border-yellow-400 text-yellow-400 px-2 py-1 rounded shrink-0">${tier.code}</span>
+                `;
+                rewardsCatalogList.appendChild(card);
+            });
+        }
+        buildRewardsCatalog();
+
+        function showRewardToast(tier) {
+            if (rewardToastTimeout) clearTimeout(rewardToastTimeout);
+            rewardToastTitle.textContent = tier.title;
+            rewardToastCode.textContent = tier.code;
+            rewardToast.classList.remove('hidden');
+            rewardToastTimeout = setTimeout(() => {
+                rewardToast.classList.add('hidden');
+            }, 3400);
+        }
+
+        function checkMilestoneRewards() {
+            for (const tier of REWARD_TIERS) {
+                if (score >= tier.points && !unlockedRewardsThisRun.some(r => r.id === tier.id)) {
+                    unlockedRewardsThisRun.push(tier);
+                    playSound('reward');
+                    showRewardToast(tier);
+                    spawnParticles(player.x + player.width / 2, player.y - 10, ['#facc15', '#34d399', '#ef4444', '#ffffff'], 24);
+                }
+            }
+        }
+
         // Item Definitions
         const itemTypes = [
-            { type: 'wing_buffalo', label: 'Alita Buffalo', pts: 10, prob: 0.30, badge: '+10 pts' },
+            { type: 'wing_buffalo', label: 'Alita ATOMIC', pts: 10, prob: 0.30, badge: '+10 pts' },
             { type: 'boneless_bbq', label: 'Boneless BBQ', pts: 15, prob: 0.25, badge: '+15 pts' },
-            { type: 'fries', label: 'Papas Francesas', pts: 25, prob: 0.15, badge: '+25 pts' },
+            { type: 'fries', label: 'Papas francesas', pts: 25, prob: 0.15, badge: '+25 pts' },
             { type: 'veggie_sticks', label: 'Zanahoria/Pepino', pts: 20, prob: 0.10, badge: '+20 pts' },
             { type: 'ranch_cup', label: 'Vasito Ranch', pts: 30, prob: 0.08, badge: '+30 pts' },
             { type: 'chili', label: 'Chile Picante', pts: -1, prob: 0.07, badge: '¡EVITA!', hazard: true },
@@ -868,6 +1033,9 @@
 
                         spawnParticles(it.x + it.size / 2, it.y + it.size / 2, ['#f97316', '#facc15', '#ffffff'], 10);
 
+                        // Check if player unlocked a real promo coupon
+                        checkMilestoneRewards();
+
                         const newLevel = Math.floor(score / 150) + 1;
                         if (newLevel > level) {
                             level = newLevel;
@@ -972,6 +1140,9 @@
             items = [];
             particles = [];
             spawnTimer = 0;
+            unlockedRewardsThisRun = [];
+            if (rewardToastTimeout) clearTimeout(rewardToastTimeout);
+            rewardToast.classList.add('hidden');
             comboBadgeEl.classList.add('hidden');
 
             resizeCanvas();
@@ -979,6 +1150,8 @@
             updateHUD();
 
             startScreen.classList.add('hidden');
+            rewardsModal.classList.add('hidden');
+            rewardsModal.classList.remove('flex');
             pauseScreen.classList.add('hidden');
             pauseScreen.classList.remove('flex');
             gameOverScreen.classList.add('hidden');
@@ -1026,6 +1199,7 @@
             gameState = 'GAMEOVER';
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             pauseBtn.classList.add('hidden');
+            rewardToast.classList.add('hidden');
             playSound('gameover');
 
             if (score > highscore) {
@@ -1040,9 +1214,72 @@
             finalScoreEl.textContent = score;
             highscoreValEl.textContent = highscore;
             finalLevelEl.textContent = level;
+
+            // Display highest unlocked coupon ticket or hint
+            if (unlockedRewardsThisRun.length > 0) {
+                const topReward = unlockedRewardsThisRun[unlockedRewardsThisRun.length - 1];
+                couponTitleEl.textContent = topReward.title;
+                couponDescEl.textContent = topReward.desc;
+                couponCodeTextEl.textContent = topReward.code;
+                copyCouponBtn.textContent = 'COPIAR';
+
+                allUnlockedBadgesEl.innerHTML = '';
+                unlockedRewardsThisRun.forEach(r => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'pixel-font text-[8px] px-1.5 py-0.5 rounded border ' +
+                        (r.id === topReward.id ? 'bg-yellow-400 text-black border-white' : 'bg-gray-800 text-yellow-300 border-yellow-500/40');
+                    chip.textContent = r.shortLabel;
+                    chip.title = 'Seleccionar cupón ' + r.code;
+                    chip.addEventListener('click', () => {
+                        couponTitleEl.textContent = r.title;
+                        couponDescEl.textContent = r.desc;
+                        couponCodeTextEl.textContent = r.code;
+                        copyCouponBtn.textContent = 'COPIAR';
+                    });
+                    allUnlockedBadgesEl.appendChild(chip);
+                });
+
+                unlockedCouponBox.classList.remove('hidden');
+                noCouponHint.classList.add('hidden');
+            } else {
+                unlockedCouponBox.classList.add('hidden');
+                noCouponHint.classList.remove('hidden');
+            }
+
             gameOverScreen.classList.remove('hidden');
             gameOverScreen.classList.add('flex');
         }
+
+        // Copy Coupon Code using execCommand fallback for iFrame compatibility
+        copyCouponBtn.addEventListener('click', () => {
+            const code = couponCodeTextEl.textContent;
+            const tempInput = document.createElement('input');
+            tempInput.value = code;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                document.execCommand('copy');
+                copyCouponBtn.textContent = '¡COPIADO!';
+                playSound('bonus');
+                setTimeout(() => {
+                    copyCouponBtn.textContent = 'COPIAR';
+                }, 2000);
+            } catch (err) {
+                copyCouponBtn.textContent = code;
+            }
+            document.body.removeChild(tempInput);
+        });
+
+        // Rewards Modal Handlers
+        openRewardsBtn.addEventListener('click', () => {
+            rewardsModal.classList.remove('hidden');
+            rewardsModal.classList.add('flex');
+        });
+        closeRewardsBtn.addEventListener('click', () => {
+            rewardsModal.classList.add('hidden');
+            rewardsModal.classList.remove('flex');
+        });
 
         // Event Listeners
         startBtn.addEventListener('click', startGame);
