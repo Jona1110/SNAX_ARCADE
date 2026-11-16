@@ -253,20 +253,20 @@ const SPRITES = {
         "................"
     ],
     boneless_bbq: [
-        ".....KKKKKK.....",
-        "...KKMMMMMMKK...",
-        "..KMMLLMMMMMMK..",
-        ".KMMLLMMMMMMMMK.",
-        ".KMMMMDDDDMMMMK.",
-        "KMMMMDDDDDDMMMMK",
-        "KMMDDDDLLDDDDMMK",
-        "KMMMDDDDDDDDMMMK",
-        ".KMMMDDDDDDMMMK.",
-        ".KMMMMDDDDMMMMK.",
-        "..KMMMMMMMMMMK..",
-        "...KKMMMMMMKK...",
-        ".....KKKKKK.....",
-        "................",
+        "....KKK...KK....",
+        "...KBBBK.KBBK...",
+        "..KBLLBBKKMMMK..",
+        ".KBLWLBMMMMMMMK.",
+        ".KBLLBMMDDDDMMMK",
+        "KBBMMDDDDWDDDMMK",
+        "KBMMMDDDDDDDDMMK",
+        ".KMMMMDDDDDDMMMK",
+        "KBBMMMMDDDDDMMK.",
+        "KBLLMMMMDDDDMMMK",
+        ".KBBBMMMMMMDDDDK",
+        "..KKKKMMMMMMDDK.",
+        ".....KMMMMMMKK..",
+        "......KKKKKK....",
         "................",
         "................"
     ],
@@ -503,10 +503,6 @@ startHighscoreEl.textContent = highscore;
 
 // ============================================================================
 // MOTOR DE IA PERSISTENTE ENTRE PARTIDAS + ESCALADO POR PUNTUACIÓN ALTA
-// 1. Aprende el perfil histórico del jugador a lo largo de sus partidas guardadas
-//    (promedio de puntos, precisión acumulada y número de partidas).
-// 2. No sube abruptamente en una sola partida recién empezada: solo escala
-//    conforme el jugador acumula partidas buenas o supera puntuaciones altas.
 // ============================================================================
 function getCareerStorageKey(name) {
     const clean = (name || 'invitado').toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -544,7 +540,6 @@ function savePlayerCareerAfterMatch(name, matchScore, matchAccuracy) {
     career.totalScore += matchScore;
     if (matchScore > career.bestScore) career.bestScore = matchScore;
 
-    // Media móvil ponderada de precisión entre partidas
     if (career.gamesPlayed === 1) {
         career.avgAccuracy = matchAccuracy;
     } else {
@@ -553,16 +548,12 @@ function savePlayerCareerAfterMatch(name, matchScore, matchAccuracy) {
 
     const avgScore = career.totalScore / career.gamesPlayed;
 
-    // Calculamos el nivel base de carrera conforme las partidas jugadas:
-    // - Si lleva pocas partidas (1-2), avanza muy suave para no abrumar.
-    // - Si lleva varias partidas con promedio alto y buena precisión, sube su perfil base.
-    const experienceWeight = Math.min(1, career.gamesPlayed / 5); // Alcanza madurez tras 5 partidas
+    const experienceWeight = Math.min(1, career.gamesPlayed / 5);
     const scoreSkill = Math.min(1.0, avgScore / 2200);
     const accuracySkill = Math.max(-0.5, (career.avgAccuracy - 0.55) * 1.4);
 
     let newCareerRating = 1.0 + ((scoreSkill * 0.35 + accuracySkill * 0.25) * experienceWeight);
 
-    // Si en sus partidas suele perder con pocos puntos (< 300 pts), la IA baja el ritmo base
     if (career.gamesPlayed >= 2 && avgScore < 300 && career.avgAccuracy < 0.52) {
         newCareerRating = Math.max(0.84, 1.0 - (0.16 * experienceWeight));
     }
@@ -610,12 +601,8 @@ function resetPlayerMetrics() {
 }
 
 function updateAdaptiveDifficulty(isInitialSync = false) {
-    // 1. Base aprendida de las partidas anteriores del jugador
     const baseFromHistory = playerMetrics.careerBaseRating;
 
-    // 2. Progresión por puntuación alta dentro de la partida actual:
-    // No reacciona a rachas cortas de 10 segundos; escala de forma gradual
-    // conforme el jugador acumula una puntuación alta real.
     let scoreProgressionBonus = 0;
     if (score >= 2800) {
         scoreProgressionBonus = 0.48 + Math.min(0.22, (score - 2800) / 6000);
@@ -627,14 +614,12 @@ function updateAdaptiveDifficulty(isInitialSync = false) {
         scoreProgressionBonus = ((score - 350) / 450) * 0.12;
     }
 
-    // 3. Ajuste fino por precisión global acumulada en la partida (solo tras >= 18 objetos)
     let accuracyModifier = 0;
     const totalEvents = playerMetrics.goodSpawned + playerMetrics.hazardsSpawned;
     if (totalEvents >= 18) {
         const catchRate = playerMetrics.goodSpawned > 0
             ? playerMetrics.goodCaught / playerMetrics.goodSpawned
             : 0.6;
-        // Si tiene mala precisión (< 45%) o le queda 1 vida, suaviza ligeramente
         if (catchRate < 0.45) {
             accuracyModifier = -0.10;
         } else if (catchRate > 0.82 && score >= 600) {
@@ -648,14 +633,12 @@ function updateAdaptiveDifficulty(isInitialSync = false) {
 
     const targetRating = Math.min(1.80, Math.max(0.82, baseFromHistory + scoreProgressionBonus + accuracyModifier));
 
-    // Transición muy gradual (0.92 anterior + 0.08 nuevo) para evitar saltos bruscos
     if (isInitialSync) {
         playerMetrics.skillRating = targetRating;
     } else {
         playerMetrics.skillRating = (playerMetrics.skillRating * 0.92) + (targetRating * 0.08);
     }
 
-    // Clasificación del nivel de IA
     let newTier = 'ESTÁNDAR';
     let badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-zinc-800 text-gray-200 px-1.5 py-0.5 rounded border border-zinc-600 shrink-0';
 
@@ -677,7 +660,6 @@ function updateAdaptiveDifficulty(isInitialSync = false) {
     aiSkillBadgeEl.textContent = `IA: ${newTier}`;
     aiSkillBadgeEl.className = badgeClass;
 
-    // Aviso discreto solo cuando cambia de categoría por puntuación o historial
     if (!isInitialSync && newTier !== playerMetrics.previousTierLabel) {
         if (playerMetrics.skillRating >= 1.15) {
             createPopup(`⚡ IA: ${newTier}`, canvas.width * 0.16, canvas.height * 0.30, '#facc15');
@@ -833,7 +815,6 @@ function buildStartGuide() {
 }
 buildStartGuide();
 
-// Renderiza los corazones con tamaño fijo blindado para que nunca colapsen en celular
 function renderLivesHUD() {
     livesContainerEl.innerHTML = '';
     for (let i = 0; i < Math.max(0, lives); i++) {
@@ -850,7 +831,7 @@ function renderLivesHUD() {
     }
 }
 
-// --- Canvas y Jugador (Escalado proporcional para móvil y escritorio) ---
+// --- Canvas y Jugador ---
 let player = {
     width: 104,
     height: 52,
@@ -1010,7 +991,6 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
         consecutiveHazards++;
         playerMetrics.hazardsSpawned++;
 
-        // Solo coloca trampas tácticas cuando la IA ya está en MODO PRO+ o PESADILLA IA
         if (overrideX === null && rating >= 1.34 && Math.random() < Math.min(0.65, (rating - 1.2) * 0.8)) {
             const playerCenter = player.x + player.width / 2;
             const predictedCenter = playerCenter + (playerMetrics.playerVelocityX * 12);
@@ -1062,7 +1042,6 @@ function spawnItem() {
     const rating = playerMetrics.skillRating;
     const firstX = createSingleItem();
 
-    // Oleadas dobles solo cuando ya lleva puntuación alta / perfil PRO+ o Pesadilla
     const doubleWaveChance = rating >= 1.56 ? 0.45 : (rating >= 1.36 ? 0.22 : 0);
     if (doubleWaveChance > 0 && Math.random() < doubleWaveChance) {
         const minGap = player.width * 1.38;
@@ -1092,7 +1071,7 @@ function createPopup(text, x, y, color = '#facc15') {
     setTimeout(() => popup.remove(), 700);
 }
 
-// --- Dibujar Charola Negra S.N.A.X. (Escalado proporcionalmente) ---
+// --- Dibujar Charola Negra S.N.A.X. ---
 function drawTakeoutTray(x, y, w, h) {
     ctx.save();
     const scale = w / 104;
@@ -1472,7 +1451,6 @@ function triggerGameOver() {
         : 0;
     const catchPct = Math.round(catchRatio * 100);
 
-    // Guarda el historial de esta partida para que la IA aprenda del jugador en futuras partidas
     const updatedCareer = savePlayerCareerAfterMatch(currentPlayerName, score, catchRatio);
 
     finalPlayerNameEl.textContent = currentPlayerName.toUpperCase();
