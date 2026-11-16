@@ -5,7 +5,8 @@ body {
     background-color: #0b0b10;
     color: #f3f4f6;
     overflow-x: hidden;
-    touch-action: none;
+    overscroll-behavior: none;
+    touch-action: manipulation;
 }
 
 .pixel-font {
@@ -31,7 +32,13 @@ body {
 /* Neon arcade glow effects */
 .arcade-box {
     box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), inset 0 0 15px rgba(245, 158, 11, 0.3);
-    border: 4px solid #ef4444;
+    border: 3px solid #ef4444;
+}
+
+@media (min-width: 640px) {
+    .arcade-box {
+        border-width: 4px;
+    }
 }
 
 /* Arcade 3D Pixel Buttons */
@@ -81,4 +88,5 @@ body {
 canvas {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
+    touch-action: none;
 }
