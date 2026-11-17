@@ -1,6 +1,6 @@
 // ============================================================================
 // S.N.A.X. ARCADE: WINGS & BONELESS RUSH
-// Motor de Juego 8-Bit, IA Persistente entre Partidas y Google Sheets
+// Motor de Juego 8-Bit, Dificultad Progresiva por Puntos y Google Sheets
 // ============================================================================
 
 // --- CONFIGURACIÓN DE GOOGLE SHEETS ---
@@ -460,6 +460,7 @@ const allUnlockedBadgesEl = document.getElementById('all-unlocked-badges');
 // --- Estado Principal del Juego ---
 let gameState = 'START';
 let animationFrameId = null;
+let lastFrameTime = 0;
 let score = 0;
 let lives = 3;
 let level = 1;
@@ -502,71 +503,10 @@ showLoginScreen();
 startHighscoreEl.textContent = highscore;
 
 // ============================================================================
-// MOTOR DE IA PERSISTENTE ENTRE PARTIDAS + ESCALADO POR PUNTUACIÓN ALTA
+// MOTOR DE DIFICULTAD PROGRESIVA POR PUNTUACIÓN DE LA PARTIDA ACTUAL
+// (Siempre escala hacia arriba según el puntaje actual; nunca ralentiza el juego)
 // ============================================================================
-function getCareerStorageKey(name) {
-    const clean = (name || 'invitado').toLowerCase().replace(/[^a-z0-9]/g, '_');
-    return `snax_ai_career_${clean}`;
-}
-
-function loadPlayerCareer(name) {
-    try {
-        const raw = localStorage.getItem(getCareerStorageKey(name));
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            return {
-                gamesPlayed: Number(parsed.gamesPlayed || 0),
-                totalScore: Number(parsed.totalScore || 0),
-                bestScore: Number(parsed.bestScore || 0),
-                avgAccuracy: Number(parsed.avgAccuracy || 0.5),
-                careerRating: Number(parsed.careerRating || 1.0)
-            };
-        }
-    } catch (e) {
-        console.warn('Error leyendo perfil histórico de IA:', e);
-    }
-    return {
-        gamesPlayed: 0,
-        totalScore: 0,
-        bestScore: 0,
-        avgAccuracy: 0.5,
-        careerRating: 1.0
-    };
-}
-
-function savePlayerCareerAfterMatch(name, matchScore, matchAccuracy) {
-    const career = loadPlayerCareer(name);
-    career.gamesPlayed += 1;
-    career.totalScore += matchScore;
-    if (matchScore > career.bestScore) career.bestScore = matchScore;
-
-    if (career.gamesPlayed === 1) {
-        career.avgAccuracy = matchAccuracy;
-    } else {
-        career.avgAccuracy = (career.avgAccuracy * 0.70) + (matchAccuracy * 0.30);
-    }
-
-    const avgScore = career.totalScore / career.gamesPlayed;
-
-    const experienceWeight = Math.min(1, career.gamesPlayed / 5);
-    const scoreSkill = Math.min(1.0, avgScore / 2200);
-    const accuracySkill = Math.max(-0.5, (career.avgAccuracy - 0.55) * 1.4);
-
-    let newCareerRating = 1.0 + ((scoreSkill * 0.35 + accuracySkill * 0.25) * experienceWeight);
-
-    if (career.gamesPlayed >= 2 && avgScore < 300 && career.avgAccuracy < 0.52) {
-        newCareerRating = Math.max(0.84, 1.0 - (0.16 * experienceWeight));
-    }
-
-    career.careerRating = Math.min(1.42, Math.max(0.84, newCareerRating));
-
-    try {
-        localStorage.setItem(getCareerStorageKey(name), JSON.stringify(career));
-    } catch (e) {
-        console.warn('No se pudo guardar el perfil de IA:', e);
-    }
-    return career;
-}
+let gamesPlayedCount = parseInt(localStorage.getItem('snax_games_played') || '0', 10);
 
 let playerMetrics = {
     goodSpawned: 0,
@@ -575,15 +515,12 @@ let playerMetrics = {
     hazardsDodged: 0,
     maxCombo: 0,
     playerVelocityX: 0,
-    careerBaseRating: 1.0,
-    gamesPlayedBefore: 0,
     skillRating: 1.0,
-    tierLabel: 'ESTÁNDAR',
-    previousTierLabel: 'ESTÁNDAR'
+    tierLabel: 'INICIAL',
+    previousTierLabel: 'INICIAL'
 };
 
 function resetPlayerMetrics() {
-    const career = loadPlayerCareer(currentPlayerName);
     playerMetrics = {
         goodSpawned: 0,
         goodCaught: 0,
@@ -591,79 +528,61 @@ function resetPlayerMetrics() {
         hazardsDodged: 0,
         maxCombo: 0,
         playerVelocityX: 0,
-        careerBaseRating: career.careerRating,
-        gamesPlayedBefore: career.gamesPlayed,
-        skillRating: career.careerRating,
-        tierLabel: 'ESTÁNDAR',
-        previousTierLabel: 'ESTÁNDAR'
+        skillRating: 1.0,
+        tierLabel: 'INICIAL',
+        previousTierLabel: 'INICIAL'
     };
     updateAdaptiveDifficulty(true);
 }
 
 function updateAdaptiveDifficulty(isInitialSync = false) {
-    const baseFromHistory = playerMetrics.careerBaseRating;
+    // Escalado 100% basado en los puntos acumulados en la partida actual
+    // Mínimo garantizado = 1.0 (ritmo ágil desde el inicio) y sube continuamente con los puntos
+    let targetRating = 1.0;
 
-    let scoreProgressionBonus = 0;
-    if (score >= 2800) {
-        scoreProgressionBonus = 0.48 + Math.min(0.22, (score - 2800) / 6000);
-    } else if (score >= 1600) {
-        scoreProgressionBonus = 0.28 + ((score - 1600) / 1200) * 0.20;
-    } else if (score >= 800) {
-        scoreProgressionBonus = 0.12 + ((score - 800) / 800) * 0.16;
-    } else if (score >= 350) {
-        scoreProgressionBonus = ((score - 350) / 450) * 0.12;
+    if (score >= 2500) {
+        targetRating = 1.72 + Math.min(0.28, (score - 2500) / 4000);
+    } else if (score >= 1800) {
+        targetRating = 1.56 + ((score - 1800) / 700) * 0.16;
+    } else if (score >= 1100) {
+        targetRating = 1.36 + ((score - 1100) / 700) * 0.20;
+    } else if (score >= 600) {
+        targetRating = 1.18 + ((score - 600) / 500) * 0.18;
+    } else if (score >= 250) {
+        targetRating = 1.06 + ((score - 250) / 350) * 0.12;
+    } else {
+        targetRating = 1.0 + (score / 250) * 0.06;
     }
-
-    let accuracyModifier = 0;
-    const totalEvents = playerMetrics.goodSpawned + playerMetrics.hazardsSpawned;
-    if (totalEvents >= 18) {
-        const catchRate = playerMetrics.goodSpawned > 0
-            ? playerMetrics.goodCaught / playerMetrics.goodSpawned
-            : 0.6;
-        if (catchRate < 0.45) {
-            accuracyModifier = -0.10;
-        } else if (catchRate > 0.82 && score >= 600) {
-            accuracyModifier = 0.08;
-        }
-    }
-
-    if (lives === 1 && score < 1200) {
-        accuracyModifier -= 0.08;
-    }
-
-    const targetRating = Math.min(1.80, Math.max(0.82, baseFromHistory + scoreProgressionBonus + accuracyModifier));
 
     if (isInitialSync) {
         playerMetrics.skillRating = targetRating;
     } else {
-        playerMetrics.skillRating = (playerMetrics.skillRating * 0.92) + (targetRating * 0.08);
+        playerMetrics.skillRating = Math.max(playerMetrics.skillRating, targetRating);
     }
 
-    let newTier = 'ESTÁNDAR';
+    let newTier = 'INICIAL';
     let badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-zinc-800 text-gray-200 px-1.5 py-0.5 rounded border border-zinc-600 shrink-0';
 
-    if (playerMetrics.skillRating >= 1.56) {
-        newTier = 'PESADILLA IA';
+    if (score >= 1800) {
+        newTier = 'PESADILLA';
         badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-purple-700 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-300 animate-pulse shrink-0';
-    } else if (playerMetrics.skillRating >= 1.34) {
+    } else if (score >= 1100) {
         newTier = 'MODO PRO+';
         badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded border border-yellow-300 shrink-0';
-    } else if (playerMetrics.skillRating >= 1.15) {
+    } else if (score >= 600) {
         newTier = 'DESAFIANTE';
         badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-amber-500 text-black px-1.5 py-0.5 rounded border border-white shrink-0';
-    } else if (playerMetrics.skillRating <= 0.90) {
-        newTier = 'ASISTIDO';
-        badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-emerald-800 text-emerald-200 px-1.5 py-0.5 rounded border border-emerald-400 shrink-0';
+    } else if (score >= 250) {
+        newTier = 'CALENTANDO';
+        badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-sky-800 text-sky-200 px-1.5 py-0.5 rounded border border-sky-400 shrink-0';
     }
 
     playerMetrics.tierLabel = newTier;
-    aiSkillBadgeEl.textContent = `IA: ${newTier}`;
+    aiSkillBadgeEl.textContent = `RITMO: ${newTier}`;
     aiSkillBadgeEl.className = badgeClass;
 
-    if (!isInitialSync && newTier !== playerMetrics.previousTierLabel) {
-        if (playerMetrics.skillRating >= 1.15) {
-            createPopup(`⚡ IA: ${newTier}`, canvas.width * 0.16, canvas.height * 0.30, '#facc15');
-        }
+    if (!isInitialSync && newTier !== playerMetrics.previousTierLabel && score > 0) {
+        createPopup(`🔥 ${newTier}`, canvas.width * 0.16, canvas.height * 0.30, '#facc15');
     }
     playerMetrics.previousTierLabel = newTier;
 }
@@ -837,7 +756,7 @@ let player = {
     height: 52,
     x: 150,
     y: 300,
-    speed: 9.8,
+    speed: 10.4,
     tilt: 0,
     catchBounce: 0
 };
@@ -861,7 +780,7 @@ function resizeCanvas() {
         const relativeX = prevWidth > 0 ? player.x / prevWidth : 0.5;
         player.width = Math.round(104 * scale);
         player.height = Math.round(52 * scale);
-        player.speed = 9.8 * (0.85 + scale * 0.15);
+        player.speed = 10.4 * (0.85 + scale * 0.15);
         player.y = canvas.height - player.height - Math.round(14 * scale);
         player.x = Math.max(0, Math.min(canvas.width - player.width, relativeX * canvas.width));
     }
@@ -917,11 +836,11 @@ function updatePlayerX(clientX) {
     player.x = Math.max(0, Math.min(canvas.width - player.width, targetX));
 }
 
-// --- Generación Inteligente de Objetos Dirigida por la IA ---
+// --- Generación de Objetos Escalada por Puntuación ---
 let items = [];
 let particles = [];
 let spawnTimer = 0;
-let spawnInterval = 54;
+let spawnInterval = 42;
 let lastHazardX = -999;
 let consecutiveHazards = 0;
 
@@ -941,7 +860,7 @@ function spawnParticles(x, y, colors, count = 10) {
 
 function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
     const rating = playerMetrics.skillRating;
-    const hazardShift = (rating - 1.0) * 0.22;
+    const hazardShift = (rating - 1.0) * 0.24;
 
     let chosen = itemTypes[0];
 
@@ -951,14 +870,14 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
     } else if (forceType === 'hazard') {
         const hazards = itemTypes.filter(i => i.hazard);
         chosen = hazards[Math.floor(Math.random() * hazards.length)];
-    } else if (consecutiveHazards >= (rating >= 1.56 ? 3 : 2)) {
+    } else if (consecutiveHazards >= (score >= 1800 ? 3 : 2)) {
         const foods = itemTypes.filter(i => !i.hazard);
         chosen = foods[Math.floor(Math.random() * foods.length)];
     } else {
         let rand = Math.random();
         let cumulative = 0;
         const weights = itemTypes.map(it => {
-            const w = it.prob + (it.hazard ? hazardShift * 0.50 : -hazardShift * 0.20);
+            const w = it.prob + (it.hazard ? hazardShift * 0.52 : -hazardShift * 0.18);
             return Math.max(0.03, w);
         });
         const totalWeight = weights.reduce((a, b) => a + b, 0);
@@ -976,8 +895,8 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
     const scale = getResponsiveScale();
     const size = Math.round(44 * scale);
     const wobbleAmp = (chosen.hazard
-        ? (2.0 + Math.max(0, rating - 1.0) * 4.5)
-        : (1.5 + Math.max(0, rating - 1.25) * 2.2)) * scale;
+        ? (2.2 + (rating - 1.0) * 4.8)
+        : (1.6 + Math.max(0, rating - 1.15) * 2.4)) * scale;
 
     const safePadding = Math.ceil(wobbleAmp + 8);
     const minSpawnX = safePadding;
@@ -991,7 +910,7 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
         consecutiveHazards++;
         playerMetrics.hazardsSpawned++;
 
-        if (overrideX === null && rating >= 1.34 && Math.random() < Math.min(0.65, (rating - 1.2) * 0.8)) {
+        if (overrideX === null && score >= 1100 && Math.random() < Math.min(0.65, (rating - 1.2) * 0.85)) {
             const playerCenter = player.x + player.width / 2;
             const predictedCenter = playerCenter + (playerMetrics.playerVelocityX * 12);
             const offsetSign = Math.random() < 0.5 ? -1 : 1;
@@ -1009,7 +928,7 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
         consecutiveHazards = 0;
         playerMetrics.goodSpawned++;
 
-        if (overrideX === null && rating >= 1.40 && Math.random() < 0.55) {
+        if (overrideX === null && score >= 1200 && Math.random() < 0.50) {
             const playerCenter = player.x + player.width / 2;
             const farSideX = playerCenter < canvas.width / 2
                 ? canvas.width * (0.62 + Math.random() * 0.28)
@@ -1018,12 +937,10 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
         }
     }
 
-    const baseSpeed = (2.35 + Math.random() * 1.1) + (level * 0.28);
-    const aiSpeedMultiplier = rating >= 1.0
-        ? (1.0 + (rating - 1.0) * 0.68)
-        : (0.82 + (rating - 0.82));
-
-    const finalSpeed = baseSpeed * aiSpeedMultiplier * (0.88 + scale * 0.12);
+    // Velocidad base dinámica que arranca ágil y acelera progresivamente con los puntos
+    const baseSpeed = 3.15 + Math.random() * 1.15;
+    const scoreSpeedMultiplier = 1.0 + ((rating - 1.0) * 0.82);
+    const finalSpeed = baseSpeed * scoreSpeedMultiplier * (0.88 + scale * 0.12);
 
     items.push({
         ...chosen,
@@ -1039,10 +956,9 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
 }
 
 function spawnItem() {
-    const rating = playerMetrics.skillRating;
     const firstX = createSingleItem();
 
-    const doubleWaveChance = rating >= 1.56 ? 0.45 : (rating >= 1.36 ? 0.22 : 0);
+    const doubleWaveChance = score >= 1800 ? 0.48 : (score >= 1100 ? 0.25 : 0);
     if (doubleWaveChance > 0 && Math.random() < doubleWaveChance) {
         const minGap = player.width * 1.38;
         const secondX = firstX < canvas.width / 2
@@ -1138,40 +1054,40 @@ function drawTakeoutTray(x, y, w, h) {
     ctx.restore();
 }
 
-// --- Actualización de Cuadro ---
-function updateGame() {
+// --- Actualización de Cuadro (Normalizada a 60 FPS para evitar lentitud en cualquier pantalla) ---
+function updateGame(dt = 1) {
     if (gameState !== 'PLAYING') return;
 
     const prevPlayerX = player.x;
 
     if (keys.ArrowLeft || keys.KeyA) {
-        player.x -= player.speed;
+        player.x -= player.speed * dt;
         player.tilt = -0.05;
     } else if (keys.ArrowRight || keys.KeyD) {
-        player.x += player.speed;
+        player.x += player.speed * dt;
         player.tilt = 0.05;
     } else {
-        player.tilt *= 0.8;
+        player.tilt *= Math.pow(0.8, dt);
     }
 
-    if (player.catchBounce > 0) player.catchBounce--;
+    if (player.catchBounce > 0) player.catchBounce = Math.max(0, player.catchBounce - dt);
 
     if (player.x < 0) player.x = 0;
     if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
 
-    playerMetrics.playerVelocityX = (player.x - prevPlayerX);
+    playerMetrics.playerVelocityX = (player.x - prevPlayerX) / Math.max(0.25, dt);
 
     if (comboCount > 1) {
-        comboTimer--;
+        comboTimer -= dt;
         if (comboTimer <= 0) {
             comboCount = 0;
             comboBadgeEl.classList.add('hidden');
         }
     }
 
-    spawnTimer++;
-    const aiRateDelta = (playerMetrics.skillRating - 1.0) * 22;
-    const currentSpawnRate = Math.max(19, Math.min(72, Math.floor(spawnInterval - (level * 3.0) - aiRateDelta)));
+    spawnTimer += dt;
+    const scoreRateReduction = (playerMetrics.skillRating - 1.0) * 28;
+    const currentSpawnRate = Math.max(16, Math.min(44, spawnInterval - scoreRateReduction));
     if (spawnTimer >= currentSpawnRate) {
         spawnItem();
         spawnTimer = 0;
@@ -1180,8 +1096,8 @@ function updateGame() {
     const scale = getResponsiveScale();
     for (let i = items.length - 1; i >= 0; i--) {
         const it = items[i];
-        it.y += it.speed;
-        it.wobblePhase += 0.075 + Math.max(0, playerMetrics.skillRating - 1.25) * 0.035;
+        it.y += it.speed * dt;
+        it.wobblePhase += (0.08 + Math.max(0, playerMetrics.skillRating - 1.15) * 0.04) * dt;
 
         const currentWobbleX = Math.sin(it.wobblePhase) * (it.wobbleAmp || 2.0);
         const itemRenderX = Math.max(2, Math.min(canvas.width - it.size - 2, it.x + currentWobbleX));
@@ -1199,7 +1115,6 @@ function updateGame() {
                 lives--;
                 comboCount = 0;
                 comboBadgeEl.classList.add('hidden');
-                updateAdaptiveDifficulty();
 
                 playSound('hurt');
                 spawnParticles(itemRenderX + it.size / 2, it.y + it.size / 2, ['#ef4444', '#facc15', '#38bdf8'], 14);
@@ -1257,17 +1172,16 @@ function updateGame() {
                 comboCount = 0;
                 comboBadgeEl.classList.add('hidden');
             }
-            updateAdaptiveDifficulty();
             items.splice(i, 1);
         }
     }
 
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.25;
-        p.life--;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 0.25 * dt;
+        p.life -= dt;
         if (p.life <= 0) particles.splice(i, 1);
     }
 }
@@ -1306,9 +1220,15 @@ function renderGame() {
     drawTakeoutTray(player.x, player.y, player.width, player.height);
 }
 
-function gameLoop() {
+function gameLoop(timestamp) {
     if (gameState !== 'PLAYING') return;
-    updateGame();
+    if (!lastFrameTime) lastFrameTime = timestamp;
+    const elapsed = timestamp - lastFrameTime;
+    lastFrameTime = timestamp;
+    // Normalizamos a 60 FPS (16.667ms por frame) con límite para evitar saltos tras cambiar de pestaña
+    const dt = Math.min(2.5, Math.max(0.5, elapsed / 16.667));
+
+    updateGame(dt);
     renderGame();
     animationFrameId = requestAnimationFrame(gameLoop);
 }
@@ -1355,10 +1275,11 @@ function startGame() {
     comboTimer = 0;
     items = [];
     particles = [];
-    spawnTimer = 0;
+    spawnTimer = 28; // Primer objeto cae casi de inmediato
     lastHazardX = -999;
     consecutiveHazards = 0;
     unlockedRewardsThisRun = [];
+    lastFrameTime = 0;
     resetPlayerMetrics();
 
     if (rewardToastTimeout) clearTimeout(rewardToastTimeout);
@@ -1395,8 +1316,7 @@ function pauseGame() {
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
     playSound('pause');
 
-    const totalGames = playerMetrics.gamesPlayedBefore + 1;
-    pauseAiSummaryEl.textContent = `IA: ${playerMetrics.tierLabel} | Partida #${totalGames} de ${currentPlayerName}`;
+    pauseAiSummaryEl.textContent = `Ritmo: ${playerMetrics.tierLabel} (${score} PTS) | ${currentPlayerName}`;
 
     pauseScreen.classList.remove('hidden');
     pauseScreen.classList.add('flex');
@@ -1406,6 +1326,7 @@ function resumeGame() {
     if (gameState !== 'PAUSED') return;
     pauseScreen.classList.add('hidden');
     pauseScreen.classList.remove('flex');
+    lastFrameTime = 0;
     gameState = 'PLAYING';
     startBGM();
     animationFrameId = requestAnimationFrame(gameLoop);
@@ -1437,6 +1358,9 @@ function triggerGameOver() {
     rewardToast.classList.add('hidden');
     playSound('gameover');
 
+    gamesPlayedCount += 1;
+    localStorage.setItem('snax_games_played', String(gamesPlayedCount));
+
     if (score > highscore) {
         highscore = score;
         localStorage.setItem('snax_highscore', String(highscore));
@@ -1451,12 +1375,10 @@ function triggerGameOver() {
         : 0;
     const catchPct = Math.round(catchRatio * 100);
 
-    const updatedCareer = savePlayerCareerAfterMatch(currentPlayerName, score, catchRatio);
-
     finalPlayerNameEl.textContent = currentPlayerName.toUpperCase();
     finalScoreEl.textContent = score;
     highscoreValEl.textContent = highscore;
-    finalSkillProfileEl.textContent = `${playerMetrics.tierLabel} (P#${updatedCareer.gamesPlayed} | ${catchPct}%)`;
+    finalSkillProfileEl.textContent = `${playerMetrics.tierLabel} (P#${gamesPlayedCount} | ${catchPct}%)`;
 
     let topCouponCode = 'NINGUNO';
     let allUnlockedCodes = 'NINGUNO';
@@ -1496,6 +1418,7 @@ function triggerGameOver() {
     }
 
     sendToGoogleSheets({
+        evento: 'FIN_PARTIDA',
         jugador: currentPlayerName,
         puntuacion: score,
         recordLocal: highscore,
@@ -1504,7 +1427,7 @@ function triggerGameOver() {
         atrapados: `${playerMetrics.goodCaught}/${playerMetrics.goodSpawned}`,
         evadidos: `${playerMetrics.hazardsDodged}/${playerMetrics.hazardsSpawned}`,
         comboMax: playerMetrics.maxCombo,
-        perfilIA: `${playerMetrics.tierLabel} (Partida #${updatedCareer.gamesPlayed})`,
+        perfilIA: `${playerMetrics.tierLabel} (${score} PTS)`,
         cupon: topCouponCode,
         cuponesPartida: allUnlockedCodes
     });
