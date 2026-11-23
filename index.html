@@ -45,7 +45,7 @@
             </div>
         </header>
 
-        <!-- Dedicated Start / Login Screen (Estilo idéntico a la captura de referencia) -->
+        <!-- Dedicated Start / Login Screen -->
         <section id="start-screen" class="w-full min-h-[480px] sm:min-h-[540px] bg-[#0b0e17] flex flex-col items-center justify-center px-4 py-6 sm:p-8 z-30 text-center">
             
             <!-- Top Eyebrow -->
@@ -82,10 +82,10 @@
 
             <!-- Descriptive Tagline -->
             <p class="text-slate-300 text-base sm:text-xl max-w-md leading-snug mb-4 sm:mb-5 px-2">
-                Desliza tu charola, atrapa tus favoritos y consigue la mejor puntuación. ¿Tienes lo necesario para llegar al premio máximo?
+                Desliza tu charola, atrapa tus favoritos y consigue la mejor puntuación. ¿Tienes lo necesario para llevarte las alitas grandes gratis?
             </p>
 
-            <!-- Player Login Box (Se oculta una vez registrado el usuario) -->
+            <!-- Player Login Box -->
             <div id="login-box" class="bg-[#111522] border border-slate-700/80 p-3 rounded-lg mb-4 w-full max-w-md text-left shadow-lg">
                 <label for="player-name-input" class="block pixel-font text-[8px] sm:text-[10px] text-[#facc15] mb-2">
                     👤 TU NOMBRE O APODO PARA JUGAR:
@@ -100,7 +100,7 @@
                 <p id="login-error-msg" class="hidden text-red-400 text-sm mt-1.5 font-bold">⚠ Escribe tu nombre o apodo para iniciar y registrar tu partida.</p>
             </div>
 
-            <!-- Locked Player Badge (Aparece en lugar del login cuando ya tiene usuario) -->
+            <!-- Locked Player Badge -->
             <div id="locked-player-banner" class="hidden bg-[#111522] border border-amber-500/50 px-3.5 py-2.5 rounded-lg mb-4 w-full max-w-md flex items-center justify-between">
                 <span class="pixel-font text-[8px] sm:text-[10px] text-slate-400">🔒 JUGADOR:</span>
                 <span id="locked-player-display" class="pixel-font text-[9px] sm:text-xs text-[#facc15] truncate max-w-[200px]">JUGADOR</span>
@@ -120,7 +120,7 @@
             </div>
         </section>
 
-        <!-- Game Play Zone (Ajustada a 100dvh en celular para que no se corte la charola ni el borde superior) -->
+        <!-- Game Play Zone -->
         <div id="game-play-zone" class="hidden relative w-full h-[64dvh] min-h-[340px] max-h-[540px] sm:h-auto sm:aspect-[4/3] bg-gradient-to-b from-slate-950 via-zinc-900 to-neutral-950 overflow-hidden flex items-center justify-center">
             
             <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
@@ -205,7 +205,7 @@
 
                 <!-- Next Reward Hint when no reward unlocked yet -->
                 <div id="no-coupon-hint" class="hidden w-full max-w-sm mb-2 bg-gray-900/90 border border-gray-700 rounded-lg p-2 text-xs text-gray-300">
-                    🎯 ¡Llega a <span class="text-yellow-400 font-bold">800 PTS</span> para desbloquear tu primer cupón de descuento!
+                    🎯 ¡Llega a <span class="text-yellow-400 font-bold">1,500 PTS</span> para desbloquear tu primer cupón de descuento!
                 </div>
 
                 <div class="flex flex-col sm:flex-row gap-2 w-full max-w-sm justify-center">
@@ -225,32 +225,26 @@
             <div class="bg-[#0f1320] border-4 border-sky-400 p-4 sm:p-5 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(56,189,248,0.35)]">
                 <h2 class="pixel-font text-xs sm:text-base text-sky-400 mb-1">📖 GUÍA DEL MENÚ</h2>
                 <p class="text-gray-300 text-xs sm:text-sm mb-3">Atrapa los pedidos S.N.A.X. y esquiva lo picante o frío:</p>
-                <div id="item-guide-grid" class="grid grid-cols-2 gap-2 text-left mb-4">
-                    <!-- Dynamically populated with mini pixel canvases -->
-                </div>
+                <div id="item-guide-grid" class="grid grid-cols-2 gap-2 text-left mb-4"></div>
                 <button id="close-guide-btn" class="w-full btn-arcade bg-red-600 hover:bg-red-500 text-white py-2.5 rounded text-xs sm:text-sm border-2 border-yellow-400">
                     ENTENDIDO
                 </button>
             </div>
         </div>
 
-        <!-- Rewards Catalog Modal (From Start Screen) -->
+        <!-- Rewards Catalog Modal -->
         <div id="rewards-modal" class="absolute inset-0 bg-black/95 hidden flex-col items-center justify-center p-4 sm:p-6 z-50 text-center overflow-y-auto">
             <div class="bg-[#0f1320] border-4 border-yellow-400 p-4 sm:p-5 rounded-lg w-full max-w-md shadow-[0_0_25px_rgba(250,204,21,0.4)]">
                 <h2 class="pixel-font text-sm sm:text-lg text-yellow-400 mb-1">🎁 PREMIOS S.N.A.X.</h2>
                 <p class="text-gray-300 text-xs sm:text-sm mb-3">Supera estas puntuaciones en una partida y desbloquea tu cupón:</p>
-                
-                <div id="rewards-catalog-list" class="space-y-2 text-left mb-4">
-                    <!-- Dynamically populated reward tiers -->
-                </div>
-
+                <div id="rewards-catalog-list" class="space-y-2 text-left mb-4"></div>
                 <button id="close-rewards-btn" class="w-full btn-arcade bg-red-600 hover:bg-red-500 text-white py-2.5 rounded text-xs sm:text-sm border-2 border-yellow-400">
                     VOLVER
                 </button>
             </div>
         </div>
 
-        <!-- Mobile Quick Touch Bar (Oculta mientras está en el Login) -->
+        <!-- Mobile Quick Touch Bar -->
         <div id="mobile-touch-bar" class="hidden bg-zinc-900 border-t border-gray-800 px-3 py-2 flex sm:hidden justify-between gap-3 shrink-0">
             <button id="touch-left" class="flex-1 bg-zinc-800 active:bg-red-600 border border-zinc-600 py-2.5 rounded pixel-font text-xs text-yellow-400">◀ IZQ</button>
             <button id="touch-right" class="flex-1 bg-zinc-800 active:bg-red-600 border border-zinc-600 py-2.5 rounded pixel-font text-xs text-yellow-400">DER ▶</button>
@@ -264,7 +258,6 @@
 
     </div>
 
-    <!-- Game Logic, Adaptive AI, Pixel Art Matrices & Google Sheets Sync -->
     <script src="script.js"></script>
 </body>
 </html>
