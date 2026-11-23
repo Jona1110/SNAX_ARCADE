@@ -3,7 +3,6 @@
 // Motor de Juego 8-Bit, Dificultad Progresiva por Puntos y Google Sheets
 // ============================================================================
 
-// --- CONFIGURACIÓN DE GOOGLE SHEETS ---
 const DEFAULT_SHEETS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwnTwYn1Y-3CfKmfsUM-o01wmkJSBfiSHRcrdGRXAWkPZIGxAwr6fc1TyfKiM43JyXj/exec";
 
 function getSheetsWebAppUrl() {
@@ -503,8 +502,7 @@ showLoginScreen();
 startHighscoreEl.textContent = highscore;
 
 // ============================================================================
-// MOTOR DE DIFICULTAD PROGRESIVA POR PUNTUACIÓN DE LA PARTIDA ACTUAL
-// (Siempre escala hacia arriba según el puntaje actual; nunca ralentiza el juego)
+// MOTOR DE DIFICULTAD PROGRESIVA POR PUNTUACIÓN
 // ============================================================================
 let gamesPlayedCount = parseInt(localStorage.getItem('snax_games_played') || '0', 10);
 
@@ -536,18 +534,19 @@ function resetPlayerMetrics() {
 }
 
 function updateAdaptiveDifficulty(isInitialSync = false) {
-    // Escalado 100% basado en los puntos acumulados en la partida actual
-    // Mínimo garantizado = 1.0 (ritmo ágil desde el inicio) y sube continuamente con los puntos
     let targetRating = 1.0;
 
-    if (score >= 2500) {
-        targetRating = 1.72 + Math.min(0.28, (score - 2500) / 4000);
-    } else if (score >= 1800) {
-        targetRating = 1.56 + ((score - 1800) / 700) * 0.16;
-    } else if (score >= 1100) {
-        targetRating = 1.36 + ((score - 1100) / 700) * 0.20;
+    if (score >= 4400) {
+        // Muro imposible después de los 3 premios reales para blindar el premio mayor de marketing
+        targetRating = 2.45 + Math.min(0.75, (score - 4400) / 1400);
+    } else if (score >= 3000) {
+        targetRating = 1.85 + ((score - 3000) / 1400) * 0.60;
+    } else if (score >= 2000) {
+        targetRating = 1.56 + ((score - 2000) / 1000) * 0.29;
+    } else if (score >= 1200) {
+        targetRating = 1.35 + ((score - 1200) / 800) * 0.21;
     } else if (score >= 600) {
-        targetRating = 1.18 + ((score - 600) / 500) * 0.18;
+        targetRating = 1.18 + ((score - 600) / 600) * 0.17;
     } else if (score >= 250) {
         targetRating = 1.06 + ((score - 250) / 350) * 0.12;
     } else {
@@ -563,10 +562,13 @@ function updateAdaptiveDifficulty(isInitialSync = false) {
     let newTier = 'INICIAL';
     let badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-zinc-800 text-gray-200 px-1.5 py-0.5 rounded border border-zinc-600 shrink-0';
 
-    if (score >= 1800) {
+    if (score >= 4400) {
+        newTier = 'INFIERNO SNAX';
+        badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-fuchsia-800 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-300 animate-bounce shrink-0';
+    } else if (score >= 2000) {
         newTier = 'PESADILLA';
         badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-purple-700 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-300 animate-pulse shrink-0';
-    } else if (score >= 1100) {
+    } else if (score >= 1200) {
         newTier = 'MODO PRO+';
         badgeClass = 'pixel-font text-[7px] sm:text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded border border-yellow-300 shrink-0';
     } else if (score >= 600) {
@@ -587,7 +589,7 @@ function updateAdaptiveDifficulty(isInitialSync = false) {
     playerMetrics.previousTierLabel = newTier;
 }
 
-// --- Sincronización con Google Sheets (Apps Script Web App) ---
+// --- Sincronización con Google Sheets ---
 function syncSheetsStatusUI() {
     if (!sheetsStatusPill) return;
     const url = getSheetsWebAppUrl();
@@ -617,11 +619,11 @@ async function sendToGoogleSheets(payload) {
     }
 }
 
-// --- Premios Desbloqueables ---
+// --- Catálogo de Premios (Retadores + Premio Mayor Gancho de Marketing) ---
 const REWARD_TIERS = [
     {
         id: 'disc10',
-        points: 800,
+        points: 1500,
         title: '10% DE DESCUENTO',
         shortLabel: '10% OFF',
         code: 'SNAX10',
@@ -629,7 +631,7 @@ const REWARD_TIERS = [
     },
     {
         id: 'freefries',
-        points: 1800,
+        points: 2800,
         title: 'PAPAS FRANCESAS GRATIS',
         shortLabel: 'PAPAS GRATIS',
         code: 'PAPAS8BIT',
@@ -637,19 +639,20 @@ const REWARD_TIERS = [
     },
     {
         id: 'extrapcs',
-        points: 3000,
+        points: 4200,
         title: '+3 PIEZAS EXTRA GRATIS',
         shortLabel: '+3 PIEZAS',
         code: '3EXTRAS',
         desc: '3 alitas o boneless extra gratis en tu orden'
     },
     {
-        id: 'kingcombo',
-        points: 4500,
-        title: '20% OFF + PAPAS GRATIS',
-        shortLabel: 'REY ARCADE',
-        code: 'REYARCADE',
-        desc: 'Premio máximo para maestros de la charola S.N.A.X.'
+        id: 'grandwings',
+        points: 15000,
+        title: '🔥 ORDEN DE ALITAS GRANDES GRATIS',
+        shortLabel: 'ALITAS GRANDES',
+        code: 'ALITASGRATIS',
+        desc: 'PREMIO MAYOR • Orden grande de alitas bañadas en tu salsa favorita',
+        isGrandPrize: true
     }
 ];
 
@@ -660,15 +663,29 @@ function buildRewardsCatalog() {
     rewardsCatalogList.innerHTML = '';
     REWARD_TIERS.forEach(tier => {
         const card = document.createElement('div');
-        card.className = 'bg-gray-900 border border-amber-500/50 rounded-lg p-2.5 flex items-center justify-between gap-2';
-        card.innerHTML = `
-            <div>
-                <div class="pixel-font text-[9px] text-amber-400">${tier.points} PTS</div>
-                <div class="pixel-font text-[10px] sm:text-xs text-white mt-0.5">${tier.title}</div>
-                <div class="text-xs text-gray-400 leading-tight mt-0.5">${tier.desc}</div>
-            </div>
-            <span class="pixel-font text-[9px] bg-black border border-yellow-400 text-yellow-400 px-2 py-1 rounded shrink-0">${tier.code}</span>
-        `;
+        if (tier.isGrandPrize) {
+            card.className = 'bg-gradient-to-r from-red-950 via-amber-950 to-red-950 border-2 border-yellow-400 rounded-lg p-2.5 flex items-center justify-between gap-2 shadow-[0_0_15px_rgba(250,204,21,0.35)]';
+            card.innerHTML = `
+                <div>
+                    <div class="pixel-font text-[9px] text-yellow-300 flex items-center gap-1">
+                        <span>👑 PREMIO MAYOR • ${tier.points.toLocaleString()} PTS</span>
+                    </div>
+                    <div class="pixel-font text-[10px] sm:text-xs text-white mt-0.5">${tier.title}</div>
+                    <div class="text-xs text-amber-200 leading-tight mt-0.5">${tier.desc}</div>
+                </div>
+                <span class="pixel-font text-[9px] bg-yellow-400 text-black font-bold border border-white px-2 py-1 rounded shrink-0">${tier.code}</span>
+            `;
+        } else {
+            card.className = 'bg-gray-900 border border-amber-500/50 rounded-lg p-2.5 flex items-center justify-between gap-2';
+            card.innerHTML = `
+                <div>
+                    <div class="pixel-font text-[9px] text-amber-400">${tier.points.toLocaleString()} PTS</div>
+                    <div class="pixel-font text-[10px] sm:text-xs text-white mt-0.5">${tier.title}</div>
+                    <div class="text-xs text-gray-400 leading-tight mt-0.5">${tier.desc}</div>
+                </div>
+                <span class="pixel-font text-[9px] bg-black border border-yellow-400 text-yellow-400 px-2 py-1 rounded shrink-0">${tier.code}</span>
+            `;
+        }
         rewardsCatalogList.appendChild(card);
     });
 }
@@ -860,7 +877,7 @@ function spawnParticles(x, y, colors, count = 10) {
 
 function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
     const rating = playerMetrics.skillRating;
-    const hazardShift = (rating - 1.0) * 0.24;
+    const hazardShift = (rating - 1.0) * 0.28;
 
     let chosen = itemTypes[0];
 
@@ -870,14 +887,14 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
     } else if (forceType === 'hazard') {
         const hazards = itemTypes.filter(i => i.hazard);
         chosen = hazards[Math.floor(Math.random() * hazards.length)];
-    } else if (consecutiveHazards >= (score >= 1800 ? 3 : 2)) {
+    } else if (consecutiveHazards >= (score >= 2000 ? 3 : 2)) {
         const foods = itemTypes.filter(i => !i.hazard);
         chosen = foods[Math.floor(Math.random() * foods.length)];
     } else {
         let rand = Math.random();
         let cumulative = 0;
         const weights = itemTypes.map(it => {
-            const w = it.prob + (it.hazard ? hazardShift * 0.52 : -hazardShift * 0.18);
+            const w = it.prob + (it.hazard ? hazardShift * 0.58 : -hazardShift * 0.18);
             return Math.max(0.03, w);
         });
         const totalWeight = weights.reduce((a, b) => a + b, 0);
@@ -895,8 +912,8 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
     const scale = getResponsiveScale();
     const size = Math.round(44 * scale);
     const wobbleAmp = (chosen.hazard
-        ? (2.2 + (rating - 1.0) * 4.8)
-        : (1.6 + Math.max(0, rating - 1.15) * 2.4)) * scale;
+        ? (2.2 + (rating - 1.0) * 5.2)
+        : (1.6 + Math.max(0, rating - 1.15) * 2.5)) * scale;
 
     const safePadding = Math.ceil(wobbleAmp + 8);
     const minSpawnX = safePadding;
@@ -910,11 +927,11 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
         consecutiveHazards++;
         playerMetrics.hazardsSpawned++;
 
-        if (overrideX === null && score >= 1100 && Math.random() < Math.min(0.65, (rating - 1.2) * 0.85)) {
+        if (overrideX === null && score >= 1200 && Math.random() < Math.min(0.75, (rating - 1.15) * 0.85)) {
             const playerCenter = player.x + player.width / 2;
             const predictedCenter = playerCenter + (playerMetrics.playerVelocityX * 12);
             const offsetSign = Math.random() < 0.5 ? -1 : 1;
-            const tacticalX = predictedCenter - size / 2 + (offsetSign * player.width * 0.38);
+            const tacticalX = predictedCenter - size / 2 + (offsetSign * player.width * 0.35);
             x = Math.max(minSpawnX, Math.min(maxSpawnX, tacticalX));
         } else if (overrideX === null) {
             let attempts = 0;
@@ -928,7 +945,7 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
         consecutiveHazards = 0;
         playerMetrics.goodSpawned++;
 
-        if (overrideX === null && score >= 1200 && Math.random() < 0.50) {
+        if (overrideX === null && score >= 1400 && Math.random() < 0.52) {
             const playerCenter = player.x + player.width / 2;
             const farSideX = playerCenter < canvas.width / 2
                 ? canvas.width * (0.62 + Math.random() * 0.28)
@@ -937,9 +954,8 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
         }
     }
 
-    // Velocidad base dinámica que arranca ágil y acelera progresivamente con los puntos
     const baseSpeed = 3.15 + Math.random() * 1.15;
-    const scoreSpeedMultiplier = 1.0 + ((rating - 1.0) * 0.82);
+    const scoreSpeedMultiplier = 1.0 + ((rating - 1.0) * 0.86);
     const finalSpeed = baseSpeed * scoreSpeedMultiplier * (0.88 + scale * 0.12);
 
     items.push({
@@ -958,15 +974,15 @@ function createSingleItem(forceType = null, overrideX = null, yOffset = 0) {
 function spawnItem() {
     const firstX = createSingleItem();
 
-    const doubleWaveChance = score >= 1800 ? 0.48 : (score >= 1100 ? 0.25 : 0);
+    const doubleWaveChance = score >= 4400 ? 0.88 : (score >= 2200 ? 0.48 : (score >= 1300 ? 0.25 : 0));
     if (doubleWaveChance > 0 && Math.random() < doubleWaveChance) {
-        const minGap = player.width * 1.38;
+        const minGap = player.width * (score >= 4400 ? 1.16 : 1.38);
         const secondX = firstX < canvas.width / 2
-            ? Math.min(canvas.width - 52, firstX + minGap + Math.random() * 60)
-            : Math.max(12, firstX - minGap - Math.random() * 60);
+            ? Math.min(canvas.width - 52, firstX + minGap + Math.random() * 50)
+            : Math.max(12, firstX - minGap - Math.random() * 50);
 
-        const secondType = Math.random() < 0.50 ? 'hazard' : 'food';
-        createSingleItem(secondType, secondX, 26);
+        const secondType = (score >= 4400 || Math.random() < 0.52) ? 'hazard' : 'food';
+        createSingleItem(secondType, secondX, 24);
     }
 }
 
@@ -1054,7 +1070,7 @@ function drawTakeoutTray(x, y, w, h) {
     ctx.restore();
 }
 
-// --- Actualización de Cuadro (Normalizada a 60 FPS para evitar lentitud en cualquier pantalla) ---
+// --- Actualización de Cuadro ---
 function updateGame(dt = 1) {
     if (gameState !== 'PLAYING') return;
 
@@ -1086,8 +1102,8 @@ function updateGame(dt = 1) {
     }
 
     spawnTimer += dt;
-    const scoreRateReduction = (playerMetrics.skillRating - 1.0) * 28;
-    const currentSpawnRate = Math.max(16, Math.min(44, spawnInterval - scoreRateReduction));
+    const scoreRateReduction = (playerMetrics.skillRating - 1.0) * 26;
+    const currentSpawnRate = Math.max(13, Math.min(44, spawnInterval - scoreRateReduction));
     if (spawnTimer >= currentSpawnRate) {
         spawnItem();
         spawnTimer = 0;
@@ -1097,7 +1113,7 @@ function updateGame(dt = 1) {
     for (let i = items.length - 1; i >= 0; i--) {
         const it = items[i];
         it.y += it.speed * dt;
-        it.wobblePhase += (0.08 + Math.max(0, playerMetrics.skillRating - 1.15) * 0.04) * dt;
+        it.wobblePhase += (0.08 + Math.max(0, playerMetrics.skillRating - 1.15) * 0.045) * dt;
 
         const currentWobbleX = Math.sin(it.wobblePhase) * (it.wobbleAmp || 2.0);
         const itemRenderX = Math.max(2, Math.min(canvas.width - it.size - 2, it.x + currentWobbleX));
@@ -1225,7 +1241,6 @@ function gameLoop(timestamp) {
     if (!lastFrameTime) lastFrameTime = timestamp;
     const elapsed = timestamp - lastFrameTime;
     lastFrameTime = timestamp;
-    // Normalizamos a 60 FPS (16.667ms por frame) con límite para evitar saltos tras cambiar de pestaña
     const dt = Math.min(2.5, Math.max(0.5, elapsed / 16.667));
 
     updateGame(dt);
@@ -1275,7 +1290,7 @@ function startGame() {
     comboTimer = 0;
     items = [];
     particles = [];
-    spawnTimer = 28; // Primer objeto cae casi de inmediato
+    spawnTimer = 28;
     lastHazardX = -999;
     consecutiveHazards = 0;
     unlockedRewardsThisRun = [];
@@ -1510,5 +1525,4 @@ function toggleAudio() {
 soundToggleBtn.addEventListener('click', toggleAudio);
 pauseSoundBtn.addEventListener('click', toggleAudio);
 
-// Render inicial
 renderLivesHUD();
